@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Syllabus 9c — Responding to Events in ReactJS</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f9ff;
+      color: #0f172a;
+      padding: 2rem;
+      display: flex;
+      justify-content: center;
+    }
+    .container { max-width: 650px; width: 100%; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      border: 1px solid #bae6fd;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      background: #e0f2fe;
+      color: #0284c7;
+      font-weight: 600;
+      font-size: 0.8rem;
+      margin-bottom: 0.75rem;
+    }
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      background: #0284c7;
+      color: white;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: #0369a1; }
+    .input-field {
+      padding: 0.6rem 0.8rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 0.75rem;
+    }
+    .input-field:focus {
+      outline: none;
+      border-color: #0284c7;
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+    }
+    .log-box {
+      background: #0f172a;
+      color: #38bdf8;
+      font-family: monospace;
+      padding: 1rem;
+      border-radius: 8px;
+      max-height: 160px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    /**
+     * Syllabus Experiment 9c:
+     * Write a program for responding to events in ReactJS.
+     * Demonstrates:
+     * 1. React SyntheticEvent wrapper
+     * 2. onClick, onChange, onSubmit, onKeyDown event handlers
+     * 3. Passing custom parameters to event handlers
+     * 4. e.preventDefault() to suppress native HTML form submission
+     */
+
+    const App = () => {
+      const [amount, setAmount] = React.useState('');
+      const [category, setCategory] = React.useState('Food');
+      const [eventLogs, setEventLogs] = React.useState([]);
+
+      const logEvent = (name, details) => {
+        const time = new Date().toLocaleTimeString();
+        setEventLogs((prev) => [`[${time}] ${name}: ${details}`, ...prev]);
+      };
+
+      // 1. onChange Event Handler
+      const handleAmountChange = (e) => {
+        setAmount(e.target.value);
+        logEvent('onChange (Amount)', `Value updated to: ₹${e.target.value}`);
+      };
+
+      // 2. onSubmit Event Handler with preventDefault()
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!amount) {
+          alert('Please enter an expense amount!');
+          return;
+        }
+        logEvent('onSubmit (Form)', `Recorded Expense of ₹${amount} for ${category}`);
+        setAmount('');
+      };
+
+      // 3. Passing custom arguments to onClick
+      const handleQuickSelect = (catName, defaultAmt) => {
+        setCategory(catName);
+        setAmount(defaultAmt);
+        logEvent('onClick (Quick Select)', `Category: ${catName}, Amount: ₹${defaultAmt}`);
+      };
+
+      // 4. onKeyDown Event Handler
+      const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+          setAmount('');
+          logEvent('onKeyDown', 'Escape key pressed -> Form cleared!');
+        }
+      };
+
+      return (
+        <div className="container">
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <span className="badge">Experiment 9c: Event Handling</span>
+            <h2>Responding to User Events in ReactJS</h2>
+            <p style={{ color: '#64748b' }}>Interactive synthetic event dispatching with state reactivity.</p>
+          </div>
+
+          <div className="card">
+            <h3 style={{ margin: '0 0 1rem' }}>Log Expense Form</h3>
+            <form onSubmit={handleSubmit}>
+              <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+                Expense Amount (₹):
+              </label>
+              <input
+                type="number"
+                className="input-field"
+                placeholder="Enter amount (Press Esc to clear)..."
+                value={amount}
+                onChange={handleAmountChange}
+                onKeyDown={handleKeyDown}
+                required
+              />
+
+              <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+                Category:
+              </label>
+              <select
+                className="input-field"
+                value={category}
+                onChange={(e) => {
+                  setCategory(e.target.value);
+                  logEvent('onChange (Select)', `Selected category: ${e.target.value}`);
+                }}
+              >
+                <option value="Food">Food & Cafeteria</option>
+                <option value="Travel">Public Transportation</option>
+                <option value="Education">Books & Supplies</option>
+                <option value="Entertainment">Outings & Movies</option>
+              </select>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <span style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginBottom: '0.4rem' }}>
+                  Quick Preset Buttons (onClick with Arguments):
+                </span>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button type="button" className="btn" style={{ background: '#e0f2fe', color: '#0284c7' }} onClick={() => handleQuickSelect('Food', 150)}>
+                    ₹150 Food
+                  </button>
+                  <button type="button" className="btn" style={{ background: '#e0f2fe', color: '#0284c7' }} onClick={() => handleQuickSelect('Travel', 60)}>
+                    ₹60 Bus Pass
+                  </button>
+                  <button type="button" className="btn" style={{ background: '#e0f2fe', color: '#0284c7' }} onClick={() => handleQuickSelect('Education', 500)}>
+                    ₹500 Books
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" className="btn" style={{ width: '100%', padding: '0.75rem' }}>
+                Submit Expense (onSubmit)
+              </button>
+            </form>
+          </div>
+
+          <div className="card">
+            <h4 style={{ margin: '0 0 0.5rem' }}>Live Event Console Dispatch Log:</h4>
+            <div className="log-box">
+              {eventLogs.length === 0 ? '> Interact with form inputs or buttons above to capture events...' : eventLogs.map((log, i) => (
+                <div key={i}>{log}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Syllabus 9a — Props and States in ReactJS</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f9ff;
+      color: #0f172a;
+      padding: 2rem;
+      display: flex;
+      justify-content: center;
+    }
+    .container { max-width: 650px; width: 100%; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      border: 1px solid #bae6fd;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      background: #e0f2fe;
+      color: #0284c7;
+      font-weight: 600;
+      font-size: 0.8rem;
+      margin-bottom: 0.75rem;
+    }
+    .btn {
+      padding: 0.45rem 0.9rem;
+      border-radius: 6px;
+      border: 1px solid #0284c7;
+      background: white;
+      color: #0284c7;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn.active, .btn:hover { background: #0284c7; color: white; }
+    .stat-pill {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      margin-right: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    /**
+     * Syllabus Experiment 9a:
+     * Write a program to work with props and states in ReactJS.
+     * Demonstrates:
+     * 1. Passing data and functions from parent to child via Props (immutable inputs)
+     * 2. Component local dynamic memory with useState() hook (mutable reactive state)
+     * 3. State lifting and unidirectional data flow
+     */
+
+    // Child Component receiving Props
+    const AccountBalanceCard = ({ accountName, balance, currency, onDeposit, onWithdraw }) => {
+      return (
+        <div className="card">
+          <span className="badge">Child Component: Receives Props</span>
+          <h3 style={{ margin: '0 0 0.5rem' }}>Account: {accountName}</h3>
+          <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: balance >= 0 ? '#0284c7' : '#ef4444', marginBottom: '1rem' }}>
+            {currency}{balance.toLocaleString('en-IN')}
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn" onClick={() => onDeposit(500)}>+ Deposit {currency}500</button>
+            <button className="btn" onClick={() => onDeposit(1000)}>+ Deposit {currency}1,000</button>
+            <button className="btn" style={{ borderColor: '#ef4444', color: '#ef4444' }} onClick={() => onWithdraw(500)}>- Withdraw {currency}500</button>
+          </div>
+        </div>
+      );
+    };
+
+    // Parent Component managing State
+    const App = () => {
+      // 1. Reactive state variables
+      const [balance, setBalance] = React.useState(8500);
+      const [currency, setCurrency] = React.useState('₹');
+      const [history, setHistory] = React.useState([
+        { id: 1, type: 'Initial', amount: 8500, time: new Date().toLocaleTimeString() }
+      ]);
+
+      const handleDeposit = (amount) => {
+        setBalance((prev) => prev + amount);
+        setHistory((prev) => [
+          { id: Date.now(), type: 'Deposit', amount: `+${currency}${amount}`, time: new Date().toLocaleTimeString() },
+          ...prev
+        ]);
+      };
+
+      const handleWithdraw = (amount) => {
+        setBalance((prev) => prev - amount);
+        setHistory((prev) => [
+          { id: Date.now(), type: 'Withdrawal', amount: `-${currency}${amount}`, time: new Date().toLocaleTimeString() },
+          ...prev
+        ]);
+      };
+
+      return (
+        <div className="container">
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <span className="badge">Experiment 9a: React Props & States</span>
+            <h2>React Props & State Demonstration</h2>
+            <p style={{ color: '#64748b' }}>Parent manages state; child receives data and triggers callbacks via props.</p>
+          </div>
+
+          {/* Child Component receiving props */}
+          <AccountBalanceCard 
+            accountName="Student Savings Wallet" 
+            balance={balance} 
+            currency={currency} 
+            onDeposit={handleDeposit} 
+            onWithdraw={handleWithdraw} 
+          />
+
+          <div className="card">
+            <span className="badge">State Change Activity Log</span>
+            <h4 style={{ margin: '0 0 0.5rem' }}>Transactions Logged in Parent State:</h4>
+            <ul style={{ paddingLeft: '1.2rem', color: '#475569' }}>
+              {history.slice(0, 5).map((item) => (
+                <li key={item.id} style={{ marginBottom: '0.3rem' }}>
+                  <strong>{item.type}</strong>: {item.amount} at <em>{item.time}</em>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

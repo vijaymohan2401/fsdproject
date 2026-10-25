@@ -1,0 +1,21 @@
+{
+  "name": "spendwise-typescript-companion",
+  "version": "1.0.0",
+  "description": "Companion TypeScript practice and viva demonstration module for B.Tech FSD-2 syllabus",
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  },
+  "keywords": [
+    "fsd-2",
+    "typescript",
+    "generics",
+    "interfaces",
+    "classes"
+  ],
+  "author": "B.Tech CSE Student",
+  "license": "ISC"
+}

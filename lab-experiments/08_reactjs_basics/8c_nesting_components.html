@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Syllabus 8c — Function & Class Components Nesting in ReactJS</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      padding: 2rem;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      max-width: 680px;
+      width: 100%;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.7rem;
+      border-radius: 9999px;
+      font-weight: 600;
+      font-size: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .badge-func { background: #e0f2fe; color: #0284c7; }
+    .badge-class { background: #fef3c7; color: #d97706; }
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      background: #0284c7;
+      color: white;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #0369a1; }
+    .input-box {
+      padding: 0.5rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      width: 120px;
+      margin-right: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    /**
+     * Syllabus Experiment 8c:
+     * Write a program for creating and nesting components (function and class).
+     * Demonstrates:
+     * 1. Nested Functional Component (Header, SummaryCard)
+     * 2. Classical React.Component Class with constructor, this.state, this.setState, and render()
+     * 3. Composition: Root App component nesting both function and class children.
+     */
+
+    // 1. Nested Functional Component: Header
+    const AppHeader = ({ title, subtitle }) => {
+      return (
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <span className="badge badge-func">Function Component: AppHeader</span>
+          <h2 style={{ margin: '0.25rem 0', color: '#0284c7' }}>{title}</h2>
+          <p style={{ color: '#64748b', margin: 0 }}>{subtitle}</p>
+        </div>
+      );
+    };
+
+    // 2. Nested Functional Component: TransactionItem
+    const TransactionItem = ({ title, amount, category }) => {
+      return (
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 0', borderBottom: '1px solid #f1f5f9' }}>
+          <div>
+            <strong>{title}</strong>
+            <span style={{ display: 'block', fontSize: '0.8rem', color: '#64748b' }}>{category}</span>
+          </div>
+          <span style={{ fontWeight: 'bold', color: amount > 0 ? '#10b981' : '#ef4444' }}>
+            {amount > 0 ? `+₹${amount}` : `-₹${Math.abs(amount)}`}
+          </span>
+        </div>
+      );
+    };
+
+    // 3. Class Component with Constructor, State & Lifecycle
+    class BudgetCalculatorClassComponent extends React.Component {
+      constructor(props) {
+        super(props);
+        this.state = {
+          monthlyBudget: props.initialBudget || 10000,
+          currentExpense: 3500,
+        };
+        // Explicit handler binding in constructor
+        this.handleExpenseAdd = this.handleExpenseAdd.bind(this);
+      }
+
+      componentDidMount() {
+        console.log('[Class Component]: BudgetCalculatorClassComponent mounted successfully.');
+      }
+
+      handleExpenseAdd(amount) {
+        this.setState((prevState) => ({
+          currentExpense: prevState.currentExpense + amount
+        }));
+      }
+
+      render() {
+        const remaining = this.state.monthlyBudget - this.state.currentExpense;
+        const percentage = Math.round((this.state.currentExpense / this.state.monthlyBudget) * 100);
+
+        return (
+          <div className="card" style={{ borderLeft: '4px solid #f59e0b' }}>
+            <span className="badge badge-class">Class Component: React.Component</span>
+            <h3 style={{ margin: '0 0 0.5rem' }}>Monthly Budget vs Expense (Class State)</h3>
+            <p style={{ fontSize: '0.9rem', color: '#64748b' }}>
+              Allocated Monthly Budget: <strong>₹{this.state.monthlyBudget.toLocaleString('en-IN')}</strong>
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+              <span>Total Spent: <strong>₹{this.state.currentExpense.toLocaleString('en-IN')}</strong> ({percentage}%)</span>
+              <span>Remaining: <strong style={{ color: remaining >= 0 ? '#10b981' : '#ef4444' }}>₹{remaining.toLocaleString('en-IN')}</strong></span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+              <button className="btn" onClick={() => this.handleExpenseAdd(500)}>+ Add ₹500 Expense</button>
+              <button className="btn" onClick={() => this.handleExpenseAdd(1000)}>+ Add ₹1,000 Expense</button>
+              <button className="btn" style={{ background: '#64748b' }} onClick={() => this.setState({ currentExpense: 0 })}>Reset</button>
+            </div>
+          </div>
+        );
+      }
+    }
+
+    // 4. Root Parent Component Nesting Child Components
+    const App = () => {
+      return (
+        <div className="container">
+          <AppHeader 
+            title="Experiment 8c: Nested Components Showcase" 
+            subtitle="Demonstrating composition of Functional and Classical React Components" 
+          />
+
+          {/* Nesting the Class Component */}
+          <BudgetCalculatorClassComponent initialBudget={12000} />
+
+          {/* Nesting Functional Components */}
+          <div className="card">
+            <span className="badge badge-func">Function Component: Transaction List</span>
+            <h3 style={{ margin: '0 0 1rem' }}>Recent Activity Records</h3>
+            <TransactionItem title="Semester Tuition Stipend" amount={15000} category="Allowance" />
+            <TransactionItem title="CSE Textbooks & Stationeries" amount={-1200} category="Education" />
+            <TransactionItem title="Campus Cafeteria Recharge" amount={-800} category="Food" />
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

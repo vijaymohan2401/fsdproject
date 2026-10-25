@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Syllabus 12b — Sharing Data Between Components (Context API)</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f9ff;
+      color: #0f172a;
+      padding: 2rem;
+      display: flex;
+      justify-content: center;
+    }
+    .container { max-width: 680px; width: 100%; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+      border: 1px solid #bae6fd;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      background: #e0f2fe;
+      color: #0284c7;
+      font-weight: 600;
+      font-size: 0.8rem;
+      margin-bottom: 0.75rem;
+    }
+    .btn {
+      padding: 0.45rem 0.85rem;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      background: white;
+      cursor: pointer;
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    .btn.active {
+      background: #0284c7;
+      color: white;
+      border-color: #0284c7;
+    }
+    .component-hierarchy {
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    /**
+     * Syllabus Experiment 12b:
+     * Write a program for sharing data between components in ReactJS.
+     * Demonstrates:
+     * 1. React Context API (React.createContext)
+     * 2. Context.Provider injecting global state down the component tree
+     * 3. useContext() hook allowing deeply nested children to consume state directly
+     * 4. Eliminating "Prop Drilling" through intermediate parent components
+     */
+
+    // 1. Create the Shared Global Context
+    const FinancialContext = React.createContext();
+
+    // Deeply Nested Component Level 3: Consuming Context
+    const TransactionCard = () => {
+      // Consumes data directly from Context without intermediate props!
+      const { currency, exchangeRate, formatAmount } = React.useContext(FinancialContext);
+
+      return (
+        <div style={{ background: '#ffffff', border: '1px solid #bae6fd', borderRadius: '8px', padding: '1rem', marginTop: '0.75rem' }}>
+          <span style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 'bold' }}>
+            Level 3 Leaf Component (Uses useContext)
+          </span>
+          <h4 style={{ margin: '0.25rem 0' }}>College Tuition Expense: {formatAmount(20000)}</h4>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
+            Currently active currency: <strong>{currency}</strong> (Rate factor: {exchangeRate})
+          </p>
+        </div>
+      );
+    };
+
+    // Intermediate Component Level 2: Does NOT need or pass any props
+    const MiddleContainer = () => {
+      return (
+        <div className="component-hierarchy">
+          <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'bold' }}>
+            Level 2 Intermediate Component (Bypassed! Zero prop drilling)
+          </span>
+          <TransactionCard />
+        </div>
+      );
+    };
+
+    // Top-Level Provider Component Level 1
+    const App = () => {
+      const [currency, setCurrency] = React.useState('INR');
+
+      const currencyRates = {
+        INR: { symbol: '₹', rate: 1 },
+        USD: { symbol: '$', rate: 0.012 },
+        EUR: { symbol: '€', rate: 0.011 }
+      };
+
+      const formatAmount = (inrAmount) => {
+        const info = currencyRates[currency];
+        const converted = Math.round(inrAmount * info.rate);
+        return `${info.symbol}${converted.toLocaleString()}`;
+      };
+
+      const contextValue = {
+        currency,
+        exchangeRate: currencyRates[currency].rate,
+        formatAmount
+      };
+
+      return (
+        <div className="container">
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+            <span className="badge">Experiment 12b: Sharing Data via Context</span>
+            <h2>Sharing Data Between Components in ReactJS</h2>
+            <p style={{ color: '#64748b' }}>Broadcasting state using React Context API to avoid prop drilling.</p>
+          </div>
+
+          <div className="card">
+            <h3>Global State Provider (Level 1)</h3>
+            <p style={{ color: '#64748b' }}>Select preferred currency at root level:</p>
+            <div>
+              <button className={`btn ${currency === 'INR' ? 'active' : ''}`} onClick={() => setCurrency('INR')}>
+                INR (₹)
+              </button>
+              <button className={`btn ${currency === 'USD' ? 'active' : ''}`} onClick={() => setCurrency('USD')}>
+                USD ($)
+              </button>
+              <button className={`btn ${currency === 'EUR' ? 'active' : ''}`} onClick={() => setCurrency('EUR')}>
+                EUR (€)
+              </button>
+            </div>
+
+            {/* Injecting context to all descendant components */}
+            <FinancialContext.Provider value={contextValue}>
+              <MiddleContainer />
+            </FinancialContext.Provider>
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

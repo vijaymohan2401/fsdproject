@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Syllabus 8b — Writing Markup with JSX in ReactJS</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0fdf4;
+      color: #0f172a;
+      padding: 2rem;
+      display: flex;
+      justify-content: center;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 650px;
+      width: 100%;
+      box-shadow: 0 10px 25px rgba(2, 132, 199, 0.08);
+      border: 1px solid #bae6fd;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.3rem 0.8rem;
+      border-radius: 9999px;
+      background: #e0f2fe;
+      color: #0284c7;
+      font-weight: 600;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+    }
+    .jsx-rule {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .jsx-rule h4 { margin: 0 0 0.4rem; color: #0284c7; }
+    code { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    /**
+     * Syllabus Experiment 8b:
+     * Write a program for writing markup with JSX.
+     * Concepts Demonstrated:
+     * 1. JavaScript XML (JSX) syntax extension
+     * 2. Embedding JavaScript expressions using curly braces {}
+     * 3. Self-closing tags (<img />, <input />, <hr />)
+     * 4. React Fragments (<> ... </>) to group elements without extra DOM wrapper nodes
+     * 5. Inline style objects ({ backgroundColor: '...', color: '...' })
+     * 6. Using className instead of class attribute
+     */
+
+    const App = () => {
+      const studentName = "CSE Student";
+      const academicYear = "2026 - 2027";
+      const semester = "VI Semester (3rd Year)";
+      const techStack = ["ReactJS", "NodeJS", "ExpressJS", "MongoDB", "TypeScript"];
+
+      // JavaScript object for inline style demonstration
+      const badgeStyle = {
+        backgroundColor: '#f0f9ff',
+        color: '#0284c7',
+        border: '1px solid #bae6fd',
+        padding: '0.4rem 0.8rem',
+        borderRadius: '6px',
+        display: 'inline-block',
+        marginRight: '0.5rem',
+        marginBottom: '0.5rem',
+        fontSize: '0.85rem',
+        fontWeight: '600'
+      };
+
+      return (
+        <div className="card">
+          <span className="badge">Experiment 8b: JSX Markup Syntax</span>
+          <h2>Writing Markup with JSX</h2>
+          <p>
+            JSX allows writing HTML-like structure directly inside JavaScript code,
+            which compiles down to <code>React.createElement()</code> calls.
+          </p>
+
+          <div className="jsx-rule">
+            <h4>1. JavaScript Expressions in JSX:</h4>
+            <p>Welcome, <strong>{studentName}</strong> | Academic Year: <strong>{academicYear}</strong></p>
+            <p>Current Enrolled: <em>{semester}</em></p>
+            <p>Computed Math in JSX: 5000 + 2500 = <strong>₹{(5000 + 2500).toLocaleString('en-IN')}</strong></p>
+          </div>
+
+          <div className="jsx-rule">
+            <h4>2. Inline Style Objects & Mapping:</h4>
+            <div>
+              {techStack.map((tech, index) => (
+                <span key={index} style={badgeStyle}>
+                  #{index + 1} {tech}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="jsx-rule">
+            <h4>3. Self-Closing Tags & React Fragment:</h4>
+            <>
+              <p style={{ margin: 0 }}>This sentence is wrapped in a ghost <code>&lt;&gt; &lt;/&gt;</code> Fragment tag.</p>
+              <hr style={{ border: 'none', borderTop: '1px dashed #cbd5e1', margin: '0.75rem 0' }} />
+              <input 
+                type="text" 
+                defaultValue="Self-closing <input /> element with defaultValue" 
+                readOnly 
+                style={{ width: '95%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: '4px' }} 
+              />
+            </>
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

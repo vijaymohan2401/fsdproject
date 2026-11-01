@@ -34,6 +34,11 @@ const budgetSchema = new mongoose.Schema(
         message: 'Budget amount must be a positive number',
       },
     },
+    lastAlertThreshold: {
+      type: String,
+      enum: ['normal', 'warning', 'limit_reached', 'exceeded', null],
+      default: null,
+    },
   },
   {
     timestamps: true,

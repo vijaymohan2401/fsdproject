@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Budget = require('../models/Budget');
 const Transaction = require('../models/Transaction');
 const { inMemory, isMongooseConnected } = require('../config/store');
+const { evaluateBudgetAlerts } = require('../services/budgetAlertService');
 
 /**
  * Budget Controller
@@ -50,22 +51,31 @@ const attachBudgetProgress = async (budget, userId) => {
     spent = matchingExpenses.reduce((sum, t) => sum + t.amount, 0);
   }
 
-  const limit = budget.amount;
-  const remaining = Math.max(0, limit - spent);
+  spent = Math.round(spent * 100) / 100;
+  const limit = Number(budget.amount);
+  const remaining = Math.round((limit - spent) * 100) / 100;
+  const overspent = Math.max(0, Math.round((spent - limit) * 100) / 100);
   const percentage = limit > 0 ? Math.round((spent / limit) * 100) : 0;
 
   let status = 'normal';
-  if (percentage >= 100) {
-    status = 'exceeded';
-  } else if (percentage >= 80) {
-    status = 'warning';
+  if (limit > 0) {
+    if (spent > limit) {
+      status = 'exceeded';
+    } else if (spent === limit) {
+      status = 'limit_reached';
+    } else if (spent >= Math.round(limit * 0.8 * 100) / 100) {
+      status = 'warning';
+    } else {
+      status = 'normal';
+    }
   }
 
   const budgetObj = budget.toObject ? budget.toObject() : { ...budget };
   return {
     ...budgetObj,
-    spent: Math.round(spent * 100) / 100,
-    remaining: Math.round(remaining * 100) / 100,
+    spent,
+    remaining,
+    overspent,
     percentage,
     status,
   };
@@ -136,6 +146,9 @@ const setBudget = async (req, res, next) => {
         { new: true, upsert: true, runValidators: true }
       );
 
+      // Evaluate alert status with new budget limit
+      await evaluateBudgetAlerts(userId, month, [category]);
+
       const budgetWithProgress = await attachBudgetProgress(updated, userId);
 
       return res.status(200).json({
@@ -163,11 +176,15 @@ const setBudget = async (req, res, next) => {
           month,
           category,
           amount,
+          lastAlertThreshold: null,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
         inMemory.budgets.push(saved);
       }
+
+      // Evaluate alert status with new budget limit
+      await evaluateBudgetAlerts(userId, month, [category]);
 
       const budgetWithProgress = await attachBudgetProgress(saved, userId);
 

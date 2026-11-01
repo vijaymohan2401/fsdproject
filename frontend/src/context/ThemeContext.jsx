@@ -4,15 +4,20 @@ const ThemeContext = createContext(null);
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('spendwise_theme') || 'light';
+    return localStorage.getItem('spendwise_theme') || 'dark';
   });
 
   const [currency, setCurrency] = useState(() => {
-    return localStorage.getItem('spendwise_currency') || 'INR';
+    const stored = localStorage.getItem('spendwise_currency');
+    if (!stored || stored === 'USD') {
+      localStorage.setItem('spendwise_currency', 'INR');
+      return 'INR';
+    }
+    return stored;
   });
 
   const [accentColor, setAccentColor] = useState(() => {
-    return localStorage.getItem('spendwise_accent') || 'blue';
+    return localStorage.getItem('spendwise_accent') || 'emerald';
   });
 
   useEffect(() => {
@@ -36,7 +41,7 @@ export const ThemeProvider = ({ children }) => {
   const getCurrencySymbol = (curr = currency) => {
     switch (curr) {
       case 'USD':
-        return '$';
+        return '₹'; // Converted dollar symbol to Indian Rupee symbol
       case 'EUR':
         return '€';
       case 'GBP':
@@ -51,7 +56,7 @@ export const ThemeProvider = ({ children }) => {
     const val = Number(amount) || 0;
     const symbol = getCurrencySymbol(customCurrency);
 
-    if (customCurrency === 'INR') {
+    if (customCurrency === 'INR' || customCurrency === 'USD') {
       // Indian numbering system formatting: 1,50,000.00
       return `${symbol}${val.toLocaleString('en-IN', {
         minimumFractionDigits: 2,

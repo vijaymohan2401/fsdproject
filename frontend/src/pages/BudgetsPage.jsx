@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Target,
   PlusCircle,
@@ -8,6 +8,10 @@ import {
   Trash2,
   Edit2,
   PieChart,
+  ShieldCheck,
+  TrendingDown,
+  Clock,
+  Sliders,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -33,7 +37,7 @@ export const BudgetsPage = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
-    document.title = 'Budgets — SpendWise Financial Planner';
+    document.title = 'Budgets — SpendWise Spending Guardrails';
   }, []);
 
   const fetchBudgets = useCallback(async () => {
@@ -62,7 +66,7 @@ export const BudgetsPage = () => {
       await api.delete(`/budgets/${deletingBudget._id || deletingBudget.id}`);
       showToast({
         type: 'success',
-        message: `${deletingBudget.category} budget removed successfully.`,
+        message: `${deletingBudget.category} budget removed.`,
       });
       setDeletingBudget(null);
       fetchBudgets();
@@ -76,50 +80,46 @@ export const BudgetsPage = () => {
   const overallBudget = budgetsData?.overallBudget;
   const categoryBudgets = budgetsData?.categoryBudgets || [];
 
+  // Calculate days remaining in selected month for burn rate insights
+  const daysRemainingInMonth = useMemo(() => {
+    const [yearStr, monthStr] = selectedMonth.split('-');
+    const y = parseInt(yearStr, 10);
+    const m = parseInt(monthStr, 10);
+    const now = new Date();
+
+    if (now.getFullYear() > y || (now.getFullYear() === y && now.getMonth() + 1 > m)) {
+      return 0; // Past month
+    }
+    if (now.getFullYear() === y && now.getMonth() + 1 === m) {
+      const lastDay = new Date(y, m, 0).getDate();
+      return Math.max(1, lastDay - now.getDate());
+    }
+    return new Date(y, m, 0).getDate(); // Future month
+  }, [selectedMonth]);
+
+  const dailyAllowance = useMemo(() => {
+    if (!overallBudget || overallBudget.remaining <= 0 || daysRemainingInMonth <= 0) {
+      return 0;
+    }
+    return Math.round((overallBudget.remaining / daysRemainingInMonth) * 100) / 100;
+  }, [overallBudget, daysRemainingInMonth]);
+
   return (
-    <div>
-      {/* Top Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '1rem',
-          marginBottom: '1.75rem',
-        }}
-      >
+    <div className="budgets-workspace">
+      {/* 1. Header with Period & Action */}
+      <div className="tx-header-wrap">
         <div>
-          <h2>Monthly Spending Budgets</h2>
-          <p style={{ marginTop: '0.2rem' }}>
-            Set financial spending guardrails and receive warnings before you overspend.
-          </p>
+          <h2>Spending Controls & Limits</h2>
+          <p>Configure monthly spending ceilings and category guardrails to prevent overspending.</p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {/* Month Picker */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              backgroundColor: 'var(--bg-surface)',
-              padding: '0.4rem 0.75rem',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-color)',
-            }}
-          >
-            <Calendar size={18} color="var(--accent-primary)" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+          <div className="period-badge-picker">
+            <Calendar size={15} color="var(--accent-primary)" />
             <input
               type="month"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
               aria-label="Select Budget Month"
             />
           </div>
@@ -132,39 +132,131 @@ export const BudgetsPage = () => {
             className="btn btn-primary"
             id="create-budget-btn"
           >
-            <PlusCircle size={18} />
-            <span>Set New Budget</span>
+            <PlusCircle size={15} />
+            <span>Configure Budget</span>
           </button>
         </div>
       </div>
 
-      {/* Main Overall Monthly Budget Card */}
-      <div className="card" style={{ marginBottom: '2rem', borderLeft: '5px solid var(--accent-primary)' }}>
-        <div className="card-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Target size={22} color="var(--accent-primary)" />
-            <h3 className="card-title">Overall Monthly Budget — {selectedMonth}</h3>
+      {/* Smart Budget Alert Banners */}
+      {overallBudget && overallBudget.status === 'exceeded' && (
+        <div className="budget-alert-banner exceeded" role="alert">
+          <AlertTriangle size={20} className="budget-alert-banner-icon" />
+          <div className="budget-alert-banner-body">
+            <div className="budget-alert-banner-title">Monthly Spending Ceiling Exceeded</div>
+            <p className="budget-alert-banner-text">
+              You have exceeded your monthly budget by{' '}
+              <strong>{formatCurrency(overallBudget.overspent || Math.abs(overallBudget.remaining))}</strong>{' '}
+              ({overallBudget.percentage}% utilized). Discretionary transactions are exceeding planned limits.
+            </p>
           </div>
+        </div>
+      )}
+
+      {overallBudget && overallBudget.status === 'limit_reached' && (
+        <div className="budget-alert-banner limit_reached" role="alert">
+          <Target size={20} className="budget-alert-banner-icon" />
+          <div className="budget-alert-banner-body">
+            <div className="budget-alert-banner-title">Monthly Spending Ceiling Limit Reached</div>
+            <p className="budget-alert-banner-text">
+              You have reached exactly 100% of your monthly budget limit ({formatCurrency(overallBudget.amount)}). 
+              Any further expense transactions will result in an overdraft.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {overallBudget && overallBudget.status === 'warning' && (
+        <div className="budget-alert-banner warning" role="alert">
+          <AlertTriangle size={20} className="budget-alert-banner-icon" />
+          <div className="budget-alert-banner-body">
+            <div className="budget-alert-banner-title">Monthly Budget Running Low</div>
+            <p className="budget-alert-banner-text">
+              Your monthly budget is running low ({overallBudget.percentage}% utilized). Only{' '}
+              <strong>{formatCurrency(overallBudget.remaining)}</strong> remains.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Category Budget Alerts (if any category is exceeded or running low) */}
+      {categoryBudgets.some((b) => b.status === 'exceeded') && (
+        <div className="budget-alert-banner exceeded" role="alert">
+          <AlertTriangle size={20} className="budget-alert-banner-icon" />
+          <div className="budget-alert-banner-body">
+            <div className="budget-alert-banner-title">Category Guardrails Exceeded</div>
+            <p className="budget-alert-banner-text">
+              One or more category budgets have exceeded their allocated limits:{' '}
+              {categoryBudgets
+                .filter((b) => b.status === 'exceeded')
+                .map((b) => `${b.category} (exceeded by ${formatCurrency(b.overspent || Math.abs(b.remaining))})`)
+                .join(', ')}
+              .
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Executive Overall Spending Ceiling Master Strip (NO 4-box card grid!) */}
+      <div className="budget-master-strip">
+        <div className="budget-master-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <div className="dash-metric-icon" style={{ backgroundColor: 'var(--accent-primary-light)', color: 'var(--accent-primary)' }}>
+              <Target size={18} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', margin: 0 }}>
+                Monthly Spending Ceiling ({selectedMonth})
+              </h3>
+              <span style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
+                {overallBudget
+                  ? `${overallBudget.percentage}% of overall monthly allowance utilized`
+                  : 'No overarching monthly ceiling assigned'}
+              </span>
+            </div>
+          </div>
+
           {overallBudget && (
-            <div style={{ display: 'flex', gap: '0.4rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {overallBudget.status === 'exceeded' && (
+                <span className="badge badge-expense">
+                  <AlertTriangle size={13} /> Over Limit ({overallBudget.percentage}%)
+                </span>
+              )}
+              {overallBudget.status === 'limit_reached' && (
+                <span className="badge badge-warning" style={{ backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#0284c7' }}>
+                  <Target size={13} /> Limit Reached (100%)
+                </span>
+              )}
+              {overallBudget.status === 'warning' && (
+                <span className="badge badge-warning">
+                  <AlertTriangle size={13} /> 80% Cap Warning
+                </span>
+              )}
+              {overallBudget.status === 'normal' && (
+                <span className="badge badge-income">
+                  <CheckCircle size={13} /> On Target ({overallBudget.percentage}%)
+                </span>
+              )}
+
               <button
                 onClick={() => {
                   setEditingBudget(overallBudget);
                   setIsModalOpen(true);
                 }}
                 className="icon-button"
-                style={{ width: '32px', height: '32px' }}
-                title="Edit overall budget"
+                style={{ width: '30px', height: '30px' }}
+                title="Edit ceiling"
               >
-                <Edit2 size={15} />
+                <Edit2 size={13} />
               </button>
               <button
                 onClick={() => setDeletingBudget(overallBudget)}
                 className="icon-button"
-                style={{ width: '32px', height: '32px', color: 'var(--accent-danger)' }}
-                title="Delete overall budget"
+                style={{ width: '30px', height: '30px', color: 'var(--accent-danger)' }}
+                title="Remove ceiling"
               >
-                <Trash2 size={15} />
+                <Trash2 size={13} />
               </button>
             </div>
           )}
@@ -172,108 +264,93 @@ export const BudgetsPage = () => {
 
         {overallBudget ? (
           <div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'baseline',
-                marginBottom: '0.75rem',
-                flexWrap: 'wrap',
-                gap: '0.5rem',
-              }}
-            >
-              <div>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  Total Spent this Month
-                </span>
-                <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>
-                  {formatCurrency(overallBudget.spent)}
+            {/* Inline Overview Metrics */}
+            <div className="budget-master-overview">
+              <div className="master-overview-numbers">
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                    Monthly Ceiling
+                  </span>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    {formatCurrency(overallBudget.amount)}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                    Current Outflow
+                  </span>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--accent-expense)' }}>
+                    {formatCurrency(overallBudget.spent)}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                    {overallBudget.status === 'exceeded'
+                      ? 'Exceeded By'
+                      : 'Remaining Allowance'}
+                  </span>
+                  <div
+                    style={{
+                      fontSize: '1.4rem',
+                      fontWeight: 800,
+                      color:
+                        overallBudget.status === 'exceeded'
+                          ? 'var(--accent-expense)'
+                          : overallBudget.status === 'limit_reached'
+                          ? '#0284c7'
+                          : 'var(--accent-income)',
+                    }}
+                  >
+                    {overallBudget.status === 'exceeded'
+                      ? `+${formatCurrency(overallBudget.overspent || Math.abs(overallBudget.remaining))}`
+                      : formatCurrency(Math.max(0, overallBudget.remaining))}
+                  </div>
                 </div>
               </div>
 
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  Budget Limit
-                </span>
-                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  {formatCurrency(overallBudget.amount)}
+              {daysRemainingInMonth > 0 && (
+                <div style={{ textAlign: 'right', backgroundColor: 'var(--bg-surface-hover)', padding: '0.5rem 0.85rem', borderRadius: 'var(--radius-sm)' }}>
+                  <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, display: 'block' }}>
+                    Safe Daily Burn Rate
+                  </span>
+                  <strong style={{ fontSize: '1rem', color: 'var(--accent-primary)' }}>
+                    {formatCurrency(dailyAllowance)} / day
+                  </strong>
+                  <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', display: 'block' }}>
+                    ({daysRemainingInMonth} days remaining)
+                  </span>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Progress Bar */}
-            <div className="progress-track" style={{ height: '14px', marginBottom: '0.75rem' }}>
+            {/* Visual Progress Bar */}
+            <div className="progress-track" style={{ height: '10px' }}>
               <div
                 className={`progress-bar ${overallBudget.status}`}
                 style={{ width: `${Math.min(overallBudget.percentage, 100)}%` }}
               />
             </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                fontSize: '0.875rem',
-                flexWrap: 'wrap',
-                gap: '0.5rem',
-              }}
-            >
-              <div>
-                {overallBudget.status === 'exceeded' && (
-                  <span className="badge badge-expense">
-                    <AlertTriangle size={14} /> Exceeded by{' '}
-                    {formatCurrency(overallBudget.spent - overallBudget.amount)} (
-                    {overallBudget.percentage}%)
-                  </span>
-                )}
-                {overallBudget.status === 'warning' && (
-                  <span className="badge badge-warning">
-                    <AlertTriangle size={14} /> Warning: 80% limit reached (
-                    {overallBudget.percentage}%)
-                  </span>
-                )}
-                {overallBudget.status === 'normal' && (
-                  <span className="badge badge-income">
-                    <CheckCircle size={14} /> Healthy ({overallBudget.percentage}% used)
-                  </span>
-                )}
-              </div>
-
-              <div>
-                <strong>Remaining: </strong>
-                <span
-                  style={{
-                    color:
-                      overallBudget.remaining > 0
-                        ? 'var(--accent-income)'
-                        : 'var(--accent-danger)',
-                    fontWeight: 700,
-                  }}
-                >
-                  {formatCurrency(overallBudget.remaining)}
-                </span>
-              </div>
-            </div>
           </div>
         ) : (
-          <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <p>No overall budget defined for {selectedMonth}.</p>
+          <div style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+              You haven't established an overall spending ceiling for {selectedMonth}.
+            </p>
             <button
               onClick={() => {
                 setEditingBudget({ category: 'Overall', month: selectedMonth });
                 setIsModalOpen(true);
               }}
               className="btn btn-primary btn-sm"
-              style={{ marginTop: '0.75rem' }}
+              style={{ marginTop: '0.85rem' }}
             >
-              Set Overall Budget
+              Set Monthly Ceiling
             </button>
           </div>
         )}
       </div>
 
-      {/* Category-Specific Budgets Section */}
+      {/* 3. Category Guardrails Section: Structured Management Table (NOT duplicate cards!) */}
       <div>
         <div
           style={{
@@ -284,26 +361,22 @@ export const BudgetsPage = () => {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <PieChart size={20} color="var(--accent-blue)" />
-            <h3>Category-Specific Budgets</h3>
+            <Sliders size={18} color="var(--accent-primary)" />
+            <h3 style={{ fontSize: '1.1rem', margin: 0 }}>Category Allocation & Guardrails</h3>
           </div>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            {categoryBudgets.length} Category Budgets Active
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            {categoryBudgets.length} Category Caps Configured
           </span>
         </div>
 
         {categoryBudgets.length === 0 ? (
-          <div
-            className="card"
-            style={{
-              padding: '2.5rem 1rem',
-              textAlign: 'center',
-              color: 'var(--text-muted)',
-            }}
-          >
-            <p>No category-specific budgets set for this month.</p>
-            <p style={{ fontSize: '0.85rem', marginTop: '0.35rem' }}>
-              You can cap specific spending areas like Food, Shopping, or Entertainment.
+          <div className="budget-empty-box">
+            <ShieldCheck size={32} color="var(--accent-primary)" style={{ margin: '0 auto 0.75rem' }} />
+            <strong style={{ display: 'block', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+              No Category Guardrails Active
+            </strong>
+            <p style={{ fontSize: '0.825rem', marginTop: '0.35rem', color: 'var(--text-secondary)' }}>
+              Set individual caps for variable expenses such as Food, Entertainment, or Shopping to prevent surprises.
             </p>
             <button
               onClick={() => {
@@ -313,96 +386,120 @@ export const BudgetsPage = () => {
               className="btn btn-secondary btn-sm"
               style={{ marginTop: '1rem' }}
             >
-              Add Category Budget
+              <PlusCircle size={14} />
+              <span>Create Category Cap</span>
             </button>
           </div>
         ) : (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '1.25rem',
-            }}
-          >
-            {categoryBudgets.map((b) => (
-              <div key={b._id || b.id} className="card">
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '0.75rem',
-                  }}
-                >
-                  <strong style={{ fontSize: '1.05rem' }}>{b.category}</strong>
-                  <div style={{ display: 'flex', gap: '0.25rem' }}>
-                    <button
-                      onClick={() => {
-                        setEditingBudget(b);
-                        setIsModalOpen(true);
+          <div className="budget-table-container">
+            <table className="budget-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '220px' }}>Category</th>
+                  <th style={{ textAlign: 'right', width: '130px' }}>Spent</th>
+                  <th style={{ textAlign: 'right', width: '130px' }}>Cap Limit</th>
+                  <th style={{ textAlign: 'right', width: '140px' }}>Remaining</th>
+                  <th>Usage & Progress</th>
+                  <th style={{ width: '130px', textAlign: 'center' }}>Health</th>
+                  <th style={{ width: '80px', textAlign: 'center' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {categoryBudgets.map((b) => (
+                  <tr key={b._id || b.id}>
+                    <td>
+                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                        {b.category}
+                      </strong>
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {formatCurrency(b.spent)}
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      {formatCurrency(b.amount)}
+                    </td>
+                    <td
+                      style={{
+                        textAlign: 'right',
+                        fontWeight: 700,
+                        color:
+                          b.status === 'exceeded'
+                            ? 'var(--accent-expense)'
+                            : b.status === 'limit_reached'
+                            ? '#0284c7'
+                            : 'var(--accent-income)',
                       }}
-                      className="icon-button"
-                      style={{ width: '28px', height: '28px' }}
-                      title="Edit budget"
                     >
-                      <Edit2 size={13} />
-                    </button>
-                    <button
-                      onClick={() => setDeletingBudget(b)}
-                      className="icon-button"
-                      style={{ width: '28px', height: '28px', color: 'var(--accent-danger)' }}
-                      title="Delete budget"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '0.85rem',
-                    color: 'var(--text-secondary)',
-                    marginBottom: '0.5rem',
-                  }}
-                >
-                  <span>Spent: {formatCurrency(b.spent)}</span>
-                  <span>Cap: {formatCurrency(b.amount)}</span>
-                </div>
-
-                <div className="progress-track" style={{ marginBottom: '0.5rem' }}>
-                  <div
-                    className={`progress-bar ${b.status}`}
-                    style={{ width: `${Math.min(b.percentage, 100)}%` }}
-                  />
-                </div>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    fontSize: '0.8rem',
-                  }}
-                >
-                  <div>
-                    {b.status === 'exceeded' && (
-                      <span className="badge badge-expense">Exceeded ({b.percentage}%)</span>
-                    )}
-                    {b.status === 'warning' && (
-                      <span className="badge badge-warning">80% Warning ({b.percentage}%)</span>
-                    )}
-                    {b.status === 'normal' && (
-                      <span className="badge badge-income">{b.percentage}% used</span>
-                    )}
-                  </div>
-                  <span style={{ color: 'var(--text-muted)' }}>
-                    Remaining: {formatCurrency(b.remaining)}
-                  </span>
-                </div>
-              </div>
-            ))}
+                      {b.status === 'exceeded'
+                        ? `-${formatCurrency(b.overspent || Math.abs(b.remaining))}`
+                        : b.status === 'limit_reached'
+                        ? formatCurrency(0)
+                        : formatCurrency(b.remaining)}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div className="progress-track" style={{ height: '7px', flex: 1 }}>
+                          <div
+                            className={`progress-bar ${b.status}`}
+                            style={{ width: `${Math.min(b.percentage, 100)}%` }}
+                          />
+                        </div>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', width: '38px', textAlign: 'right' }}>
+                          {b.percentage}%
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      {b.status === 'exceeded' && (
+                        <span className="badge badge-expense" style={{ fontSize: '0.7rem' }}>
+                          Over Limit
+                        </span>
+                      )}
+                      {b.status === 'limit_reached' && (
+                        <span className="badge badge-warning" style={{ fontSize: '0.7rem', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#0284c7' }}>
+                          Limit Reached
+                        </span>
+                      )}
+                      {b.status === 'warning' && (
+                        <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>
+                          80% Warning
+                        </span>
+                      )}
+                      {b.status === 'normal' && (
+                        <span className="badge badge-income" style={{ fontSize: '0.7rem' }}>
+                          On Track
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.25rem' }}>
+                        <button
+                          onClick={() => {
+                            setEditingBudget(b);
+                            setIsModalOpen(true);
+                          }}
+                          className="icon-button"
+                          style={{ width: '28px', height: '28px' }}
+                          title="Edit cap"
+                          aria-label={`Edit ${b.category} cap`}
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                        <button
+                          onClick={() => setDeletingBudget(b)}
+                          className="icon-button"
+                          style={{ width: '28px', height: '28px', color: 'var(--accent-danger)' }}
+                          title="Delete cap"
+                          aria-label={`Delete ${b.category} cap`}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -424,7 +521,7 @@ export const BudgetsPage = () => {
         isOpen={!!deletingBudget}
         title="Delete Budget"
         message={`Are you sure you want to remove the ${deletingBudget?.category} budget for ${selectedMonth}?`}
-        confirmText="Delete Budget"
+        confirmText="Confirm Delete"
         loading={deleteLoading}
         onConfirm={handleDeleteConfirm}
         onClose={() => setDeletingBudget(null)}

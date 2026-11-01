@@ -12,6 +12,7 @@ const inMemory = {
   users: [],
   transactions: [],
   budgets: [],
+  notifications: [],
   initialized: false,
 };
 
@@ -115,6 +116,7 @@ const initFallbackData = async () => {
     month: currentMonthStr,
     category: 'Overall',
     amount: 10000,
+    lastAlertThreshold: 'normal',
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -124,8 +126,24 @@ const initFallbackData = async () => {
     month: currentMonthStr,
     category: 'Food',
     amount: 3500,
+    lastAlertThreshold: 'warning',
     createdAt: new Date(),
     updatedAt: new Date(),
+  });
+
+  // Seed sample budget alert notification for Food (spent 2,800 of 3,500 = 80%)
+  inMemory.notifications.push({
+    _id: new mongoose.Types.ObjectId(),
+    user: demoUser._id,
+    title: 'Food Budget Running Low',
+    message: 'Your Food budget is running low. Only ₹700 remains.',
+    type: 'warning',
+    month: currentMonthStr,
+    category: 'Food',
+    thresholdTier: 'warning',
+    isRead: false,
+    createdAt: new Date(now.getTime() - 1000 * 60 * 30), // 30 minutes ago
+    updatedAt: new Date(now.getTime() - 1000 * 60 * 30),
   });
 
   inMemory.initialized = true;

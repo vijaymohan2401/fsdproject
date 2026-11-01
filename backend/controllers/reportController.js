@@ -107,16 +107,23 @@ const getDashboardData = async (req, res, next) => {
     const netBalance = Math.round((totalIncome - totalExpenses) * 100) / 100;
 
     // Budget Calculations
-    const budgetLimit = overallBudget ? overallBudget.amount : 0;
-    const budgetRemaining = Math.max(0, Math.round((budgetLimit - totalExpenses) * 100) / 100);
+    const budgetLimit = overallBudget ? Number(overallBudget.amount) : 0;
+    const budgetRemaining = Math.round((budgetLimit - totalExpenses) * 100) / 100;
+    const budgetOverspent = Math.max(0, Math.round((totalExpenses - budgetLimit) * 100) / 100);
     const budgetPercentage =
       budgetLimit > 0 ? Math.round((totalExpenses / budgetLimit) * 100) : 0;
 
     let budgetStatus = 'none';
     if (budgetLimit > 0) {
-      if (budgetPercentage >= 100) budgetStatus = 'exceeded';
-      else if (budgetPercentage >= 80) budgetStatus = 'warning';
-      else budgetStatus = 'normal';
+      if (totalExpenses > budgetLimit) {
+        budgetStatus = 'exceeded';
+      } else if (totalExpenses === budgetLimit) {
+        budgetStatus = 'limit_reached';
+      } else if (totalExpenses >= Math.round(budgetLimit * 0.8 * 100) / 100) {
+        budgetStatus = 'warning';
+      } else {
+        budgetStatus = 'normal';
+      }
     }
 
     // Category Breakdown sorted highest to lowest
@@ -138,6 +145,7 @@ const getDashboardData = async (req, res, next) => {
         netBalance,
         budgetLimit,
         budgetRemaining,
+        budgetOverspent,
         budgetPercentage,
         budgetStatus,
       },
@@ -182,11 +190,13 @@ const getAnalytics = async (req, res, next) => {
     const summarizeRange = (start, end) => {
       let income = 0;
       let expense = 0;
+      let transactionCount = 0;
       const catMap = {};
 
       allUserTransactions.forEach((t) => {
         const d = new Date(t.date);
         if (d >= start && d <= end) {
+          transactionCount++;
           const amt = Number(t.amount);
           if (t.type === 'income') {
             income += amt;
@@ -202,26 +212,33 @@ const getAnalytics = async (req, res, next) => {
         expense: Math.round(expense * 100) / 100,
         net: Math.round((income - expense) * 100) / 100,
         catMap,
+        transactionCount,
+        hasData: transactionCount > 0,
       };
     };
 
     const currentStats = summarizeRange(currRange.start, currRange.end);
     const prevStats = summarizeRange(prevRange.start, prevRange.end);
 
-    // Percentage Changes vs Previous Month
+    // Percentage Changes vs Previous Month (calculated ONLY if previous month had real data)
+    const hasPriorData = prevStats.transactionCount > 0;
     const calcPctChange = (current, previous) => {
-      if (previous === 0) return current > 0 ? 100 : 0;
+      if (!hasPriorData || previous === 0) return null;
       return Math.round(((current - previous) / previous) * 100);
     };
 
     const comparison = {
       prevMonth,
       currentMonth,
+      hasPriorData,
+      currentHasData: currentStats.hasData,
       incomeChangePct: calcPctChange(currentStats.income, prevStats.income),
       expenseChangePct: calcPctChange(currentStats.expense, prevStats.expense),
       prevIncome: prevStats.income,
       prevExpense: prevStats.expense,
       prevNet: prevStats.net,
+      prevCount: prevStats.transactionCount,
+      currentCount: currentStats.transactionCount,
     };
 
     // Category breakdown with shares
@@ -256,6 +273,8 @@ const getAnalytics = async (req, res, next) => {
         income: stats.income,
         expense: stats.expense,
         net: stats.net,
+        hasData: stats.hasData,
+        count: stats.transactionCount,
       });
     }
 

@@ -10,12 +10,14 @@ import {
   Calendar,
   AlertTriangle,
   CheckCircle,
+  ArrowUpRight,
+  ArrowDownRight,
+  Layers,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { IncomeExpenseBarChart } from '../components/Charts/IncomeExpenseBarChart';
-import { CategoryDonutChart } from '../components/Charts/CategoryDonutChart';
 import { TransactionModal } from '../components/TransactionModal';
 import { BudgetModal } from '../components/BudgetModal';
 
@@ -38,7 +40,7 @@ export const DashboardPage = () => {
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
 
   useEffect(() => {
-    document.title = 'Dashboard — SpendWise Financial Tracker';
+    document.title = 'Dashboard — SpendWise Financial Overview';
   }, []);
 
   const fetchDashboard = useCallback(async () => {
@@ -60,6 +62,15 @@ export const DashboardPage = () => {
     fetchDashboard();
   }, [fetchDashboard]);
 
+  // Listen for global custom events from the sidebar
+  useEffect(() => {
+    const handleGlobalUpdate = () => {
+      fetchDashboard();
+    };
+    window.addEventListener('spendwise:data-updated', handleGlobalUpdate);
+    return () => window.removeEventListener('spendwise:data-updated', handleGlobalUpdate);
+  }, [fetchDashboard]);
+
   const summary = dashboardData?.summary || {
     totalIncome: 0,
     totalExpenses: 0,
@@ -70,59 +81,64 @@ export const DashboardPage = () => {
     budgetStatus: 'none',
   };
 
+  const categoryBreakdown = dashboardData?.categoryBreakdown || [];
+
   const openAddTransaction = (initialType = 'expense') => {
     setTxModalInitialType(initialType);
     setIsTxModalOpen(true);
   };
 
+  const getCategoryInitial = (cat) => {
+    if (!cat) return '•';
+    return cat.slice(0, 1).toUpperCase();
+  };
+
   return (
     <div>
-      {/* Top Welcome Bar & Month Selector */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '1rem',
-          marginBottom: '1.75rem',
-        }}
-      >
-        <div>
-          <h2>Welcome back, {user?.name?.split(' ')[0] || 'User'}!</h2>
-          <p style={{ marginTop: '0.2rem' }}>
-            Here is your financial overview for the selected month.
-          </p>
+      {/* 1. Header with Period Picker & Direct Actions */}
+      <div className="dash-header-wrap">
+        <div className="dash-header-meta">
+          <h2>Welcome back, {user?.name?.split(' ')[0] || 'Member'}</h2>
+          <p>Real-time cash flow position and executive spending overview for {selectedMonth}.</p>
         </div>
 
-        {/* Month Picker */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            backgroundColor: 'var(--bg-surface)',
-            padding: '0.4rem 0.75rem',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-color)',
-          }}
-        >
-          <Calendar size={18} color="var(--accent-primary)" />
-          <label htmlFor="dashboard-month-picker" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-            Period:
-          </label>
-          <input
-            id="dashboard-month-picker"
-            type="month"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          />
+        <div className="dash-header-controls">
+          {/* Period Selector */}
+          <div className="period-badge-picker">
+            <Calendar size={15} color="var(--accent-primary)" />
+            <label htmlFor="dashboard-month-picker" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+              Period:
+            </label>
+            <input
+              id="dashboard-month-picker"
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              aria-label="Select reporting month"
+            />
+          </div>
+
+          {/* Primary Action Buttons */}
+          <div className="dash-action-group">
+            <button
+              onClick={() => openAddTransaction('expense')}
+              className="btn btn-primary"
+              id="quick-add-expense-btn"
+              title="Record an outflow"
+            >
+              <PlusCircle size={15} />
+              <span>Record Expense</span>
+            </button>
+            <button
+              onClick={() => openAddTransaction('income')}
+              className="btn btn-secondary"
+              id="quick-add-income-btn"
+              title="Record an inflow"
+            >
+              <TrendingUp size={15} color="var(--accent-income)" />
+              <span>Record Income</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -134,184 +150,232 @@ export const DashboardPage = () => {
             color: 'var(--accent-danger)',
             borderRadius: 'var(--radius-sm)',
             marginBottom: '1.5rem',
+            fontSize: '0.9rem',
           }}
         >
           {error}
         </div>
       )}
 
-      {/* 4 Financial Metric Cards */}
-      <div className="metrics-grid">
-        {/* Income Card */}
-        <div className="metric-card income">
-          <div className="metric-header">
-            <span className="metric-label">Total Income</span>
-            <div className="metric-icon-wrap">
-              <TrendingUp size={18} />
-            </div>
-          </div>
-          <div className="metric-value">{formatCurrency(summary.totalIncome)}</div>
-          <div className="metric-subtext">Sum of income for {selectedMonth}</div>
-        </div>
-
-        {/* Expenses Card */}
-        <div className="metric-card expense">
-          <div className="metric-header">
-            <span className="metric-label">Total Expenses</span>
-            <div className="metric-icon-wrap">
-              <TrendingDown size={18} />
-            </div>
-          </div>
-          <div className="metric-value">{formatCurrency(summary.totalExpenses)}</div>
-          <div className="metric-subtext">Sum of expenses for {selectedMonth}</div>
-        </div>
-
-        {/* Available Balance Card */}
-        <div className="metric-card balance">
-          <div className="metric-header">
-            <span className="metric-label">Net Balance</span>
-            <div className="metric-icon-wrap">
-              <Wallet size={18} />
-            </div>
-          </div>
-          <div
-            className="metric-value"
-            style={{
-              color: summary.netBalance >= 0 ? 'var(--accent-income)' : 'var(--accent-danger)',
-            }}
-          >
-            {formatCurrency(summary.netBalance)}
-          </div>
-          <div className="metric-subtext">Income minus expenses for period</div>
-        </div>
-
-        {/* Budget Remaining Card */}
-        <div className="metric-card budget">
-          <div className="metric-header">
-            <span className="metric-label">Budget Remaining</span>
-            <div className="metric-icon-wrap">
-              <Target size={18} />
-            </div>
-          </div>
-          <div className="metric-value">{formatCurrency(summary.budgetRemaining)}</div>
-          <div className="metric-subtext">
-            {summary.budgetLimit > 0
-              ? `${summary.budgetPercentage}% of ${formatCurrency(summary.budgetLimit)} used`
-              : 'No overall budget set'}
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Action Buttons */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-          marginBottom: '1.75rem',
-        }}
-      >
-        <button
-          onClick={() => openAddTransaction('income')}
-          className="btn btn-primary"
-          id="quick-add-income-btn"
-          style={{ backgroundColor: 'var(--accent-income)' }}
-        >
-          <PlusCircle size={18} />
-          <span>Record Income</span>
-        </button>
-        <button
-          onClick={() => openAddTransaction('expense')}
-          className="btn btn-danger"
-          id="quick-add-expense-btn"
-        >
-          <PlusCircle size={18} />
-          <span>Record Expense</span>
-        </button>
-        <button
-          onClick={() => setIsBudgetModalOpen(true)}
-          className="btn btn-secondary"
-          id="quick-set-budget-btn"
-        >
-          <Target size={18} />
-          <span>Set Monthly Budget</span>
-        </button>
-      </div>
-
-      {/* Budget Health Alert & Progress Bar */}
-      {summary.budgetLimit > 0 && (
-        <div className="card" style={{ marginBottom: '1.75rem' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '0.75rem',
-              flexWrap: 'wrap',
-              gap: '0.5rem',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Target size={20} color="var(--accent-primary)" />
-              <strong>Monthly Overall Budget Progress</strong>
-            </div>
-            <div>
-              {summary.budgetStatus === 'exceeded' && (
-                <span className="badge badge-expense">
-                  <AlertTriangle size={14} /> Exceeded (100%+)
-                </span>
-              )}
-              {summary.budgetStatus === 'warning' && (
-                <span className="badge badge-warning">
-                  <AlertTriangle size={14} /> Warning (80% Reached)
-                </span>
-              )}
-              {summary.budgetStatus === 'normal' && (
-                <span className="badge badge-income">
-                  <CheckCircle size={14} /> On Track
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="progress-track" style={{ height: '12px', marginBottom: '0.75rem' }}>
-            <div
-              className={`progress-bar ${summary.budgetStatus}`}
-              style={{ width: `${Math.min(summary.budgetPercentage, 100)}%` }}
-            />
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              fontSize: '0.85rem',
-              color: 'var(--text-secondary)',
-              flexWrap: 'wrap',
-            }}
-          >
-            <span>Spent: {formatCurrency(summary.totalExpenses)}</span>
-            <span>Limit: {formatCurrency(summary.budgetLimit)}</span>
-            <span>Remaining: {formatCurrency(summary.budgetRemaining)}</span>
+      {/* Dynamic Smart Budget Alert Banner for Monthly Spending Ceiling */}
+      {summary.budgetLimit > 0 && summary.budgetStatus === 'exceeded' && (
+        <div className="budget-alert-banner exceeded" role="alert">
+          <AlertTriangle size={20} className="budget-alert-banner-icon" />
+          <div className="budget-alert-banner-body">
+            <div className="budget-alert-banner-title">Monthly Budget Exceeded</div>
+            <p className="budget-alert-banner-text">
+              You have exceeded your monthly budget by{' '}
+              <strong>{formatCurrency(summary.budgetOverspent || (summary.totalExpenses - summary.budgetLimit))}</strong>{' '}
+              ({summary.budgetPercentage}% used). Consider reviewing discretionary outlays.
+            </p>
           </div>
         </div>
       )}
 
-      {/* Visual Charts Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          gap: '1.5rem',
-          marginBottom: '1.75rem',
-        }}
-      >
-        {/* Income vs Expenses Bar Chart */}
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Income vs Expenses</h3>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              {selectedMonth}
+      {summary.budgetLimit > 0 && summary.budgetStatus === 'limit_reached' && (
+        <div className="budget-alert-banner limit_reached" role="alert">
+          <Target size={20} className="budget-alert-banner-icon" />
+          <div className="budget-alert-banner-body">
+            <div className="budget-alert-banner-title">Monthly Budget Limit Reached</div>
+            <p className="budget-alert-banner-text">
+              You have reached exactly 100% of your monthly budget limit ({formatCurrency(summary.budgetLimit)}). 
+              Any further expense transactions will push your cash flow into a deficit.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {summary.budgetLimit > 0 && summary.budgetStatus === 'warning' && (
+        <div className="budget-alert-banner warning" role="alert">
+          <AlertTriangle size={20} className="budget-alert-banner-icon" />
+          <div className="budget-alert-banner-body">
+            <div className="budget-alert-banner-title">Monthly Budget Running Low</div>
+            <p className="budget-alert-banner-text">
+              Your monthly budget is running low ({summary.budgetPercentage}% utilized). Only{' '}
+              <strong>{formatCurrency(summary.budgetRemaining)}</strong> remains before you reach your spending ceiling.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Asymmetric Executive Cash Flow Hero (NO 4-box card grid!) */}
+      <div className="dash-executive-hero">
+        {/* Left: Net Balance Hero Card */}
+        <div className="dash-net-hero">
+          <div>
+            <div className="dash-net-hero-top">
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Net Available Balance
+              </span>
+              {summary.netBalance >= 0 ? (
+                <span className="badge badge-income">
+                  <ArrowUpRight size={13} /> Surplus
+                </span>
+              ) : (
+                <span className="badge badge-expense">
+                  <ArrowDownRight size={13} /> Deficit
+                </span>
+              )}
+            </div>
+            <div className="dash-net-hero-val">{formatCurrency(summary.netBalance)}</div>
+          </div>
+
+          {/* Integrated Inflow & Outflow telemetry bar */}
+          <div className="dash-net-hero-flow">
+            <div>
+              <span className="flow-col-label">Total Inflow</span>
+              <span className="flow-col-val" style={{ color: 'var(--accent-income)' }}>
+                +{formatCurrency(summary.totalIncome)}
+              </span>
+            </div>
+            <div style={{ width: '1px', height: '28px', backgroundColor: 'var(--border-color)' }} />
+            <div>
+              <span className="flow-col-label">Total Outflow</span>
+              <span className="flow-col-val" style={{ color: 'var(--accent-expense)' }}>
+                -{formatCurrency(summary.totalExpenses)}
+              </span>
+            </div>
+            <div style={{ width: '1px', height: '28px', backgroundColor: 'var(--border-color)' }} />
+            <div>
+              <span className="flow-col-label">Savings Velocity</span>
+              <span className="flow-col-val" style={{ color: 'var(--text-primary)' }}>
+                {summary.totalIncome > 0
+                  ? `${Math.max(0, Math.round(((summary.totalIncome - summary.totalExpenses) / summary.totalIncome) * 100))}%`
+                  : '0%'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Spending Guardrail Status Dial */}
+        <div className="dash-budget-dial-card">
+          <div>
+            <div className="dash-budget-dial-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Target size={18} color="var(--accent-primary)" />
+                <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                  Monthly Budget Guardrail
+                </span>
+              </div>
+              {summary.budgetLimit > 0 && (
+                <div>
+                  {summary.budgetStatus === 'exceeded' && (
+                    <span className="badge badge-expense">Exceeded ({summary.budgetPercentage}%)</span>
+                  )}
+                  {summary.budgetStatus === 'limit_reached' && (
+                    <span className="badge badge-warning" style={{ backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#0284c7' }}>
+                      Limit Reached (100%)
+                    </span>
+                  )}
+                  {summary.budgetStatus === 'warning' && (
+                    <span className="badge badge-warning">Running Low ({summary.budgetPercentage}%)</span>
+                  )}
+                  {summary.budgetStatus === 'normal' && (
+                    <span className="badge badge-income">On Track ({summary.budgetPercentage}%)</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {summary.budgetLimit > 0 ? (
+              <>
+                <div className="dash-budget-dial-stats">
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                      Spent of Limit
+                    </span>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {formatCurrency(summary.totalExpenses)}{' '}
+                      <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>
+                        / {formatCurrency(summary.budgetLimit)}
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    {summary.budgetStatus === 'exceeded' ? (
+                      <>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--accent-expense)', textTransform: 'uppercase', fontWeight: 600 }}>
+                          Exceeded By
+                        </span>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-expense)' }}>
+                          +{formatCurrency(summary.budgetOverspent || (summary.totalExpenses - summary.budgetLimit))}
+                        </div>
+                      </>
+                    ) : summary.budgetStatus === 'limit_reached' ? (
+                      <>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                          Remaining
+                        </span>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0284c7' }}>
+                          {formatCurrency(0)}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                          Remaining
+                        </span>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-income)' }}>
+                          {formatCurrency(summary.budgetRemaining)}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="progress-track" style={{ height: '8px', marginBottom: '0.5rem' }}>
+                  <div
+                    className={`progress-bar ${summary.budgetStatus}`}
+                    style={{ width: `${Math.min(summary.budgetPercentage, 100)}%` }}
+                  />
+                </div>
+                <span style={{ fontSize: '0.785rem', color: 'var(--text-muted)' }}>
+                  {summary.budgetPercentage}% of overall spending allowance utilized
+                </span>
+              </>
+            ) : (
+              <div style={{ padding: '1rem 0', textAlign: 'center' }}>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                  No overall spending ceiling set for this month.
+                </p>
+                <button
+                  onClick={() => setIsBudgetModalOpen(true)}
+                  className="btn btn-secondary btn-sm"
+                  style={{ marginTop: '0.75rem' }}
+                >
+                  Configure Budget Ceiling
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
+            <Link
+              to="/budgets"
+              style={{
+                fontSize: '0.825rem',
+                fontWeight: 600,
+                color: 'var(--accent-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+              }}
+            >
+              <span>Manage Budget Limits</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Middle Section: Cash Flow Bar on Left + Top Expense Categories on Right (No Donut Chart on Dashboard!) */}
+      <div className="dash-middle-grid">
+        {/* Left: Cash Flow Column Chart */}
+        <div className="dash-panel">
+          <div className="dash-panel-header">
+            <h3 className="dash-panel-title">Cash Flow Dynamic</h3>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Inflow vs Outflow
             </span>
           </div>
           <IncomeExpenseBarChart
@@ -320,35 +384,77 @@ export const DashboardPage = () => {
           />
         </div>
 
-        {/* Category Breakdown Donut Chart */}
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Category Spending</h3>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Expense Distribution
+        {/* Right: Top Expense Drivers by Share (Horizontal progress bars, distinct from Reports Donut!) */}
+        <div className="dash-panel">
+          <div className="dash-panel-header">
+            <h3 className="dash-panel-title">Top Expense Drivers</h3>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              By Expense Share
             </span>
           </div>
-          <CategoryDonutChart categories={dashboardData?.categoryBreakdown || []} />
+
+          {categoryBreakdown.length === 0 ? (
+            <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <p style={{ fontSize: '0.875rem' }}>No expenses recorded for {selectedMonth}.</p>
+              <button
+                onClick={() => openAddTransaction('expense')}
+                className="btn btn-secondary btn-sm"
+                style={{ marginTop: '0.5rem' }}
+              >
+                Log an Expense
+              </button>
+            </div>
+          ) : (
+            <div className="category-progress-list">
+              {categoryBreakdown.slice(0, 4).map((cat) => (
+                <div key={cat.category} className="category-progress-item">
+                  <div className="category-progress-meta">
+                    <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>
+                      {cat.category}
+                    </strong>
+                    <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.85rem' }}>
+                      {formatCurrency(cat.amount)}{' '}
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.775rem' }}>
+                        ({cat.percentage}%)
+                      </span>
+                    </span>
+                  </div>
+                  <div className="progress-track" style={{ height: '6px' }}>
+                    <div
+                      className="progress-bar normal"
+                      style={{ width: `${cat.percentage}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+              {categoryBreakdown.length === 1 && (
+                <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>
+                  1 active category driver
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Recent Transactions Section */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">Recent Transactions</h3>
+      {/* 4. Bottom Section: Recent Activity Stream */}
+      <div className="dash-panel">
+        <div className="dash-panel-header">
+          <h3 className="dash-panel-title">Recent Activity</h3>
           <Link
             to="/transactions"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.35rem',
-              fontSize: '0.875rem',
+              fontSize: '0.85rem',
               fontWeight: 600,
+              color: 'var(--accent-primary)',
             }}
             id="view-all-tx-link"
           >
-            <span>View All</span>
-            <ArrowRight size={16} />
+            <span>Complete Ledger</span>
+            <ArrowRight size={15} />
           </Link>
         </div>
 
@@ -366,65 +472,55 @@ export const DashboardPage = () => {
               className="btn btn-primary btn-sm"
               style={{ marginTop: '0.75rem' }}
             >
-              Add Your First Transaction
+              Log First Transaction
             </button>
           </div>
         ) : (
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th>Category</th>
-                  <th>Description</th>
-                  <th style={{ textAlign: 'right' }}>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dashboardData?.recentTransactions?.map((tx) => (
-                  <tr key={tx._id || tx.id}>
-                    <td style={{ whiteSpace: 'nowrap' }}>
-                      {new Date(tx.date).toLocaleDateString('en-IN', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          tx.type === 'income' ? 'badge-income' : 'badge-expense'
-                        }`}
-                      >
-                        {tx.type === 'income' ? '+ Income' : '- Expense'}
+          <div className="activity-feed-list">
+            {dashboardData?.recentTransactions?.map((tx) => (
+              <div key={tx._id || tx.id} className="activity-row">
+                <div className="activity-left">
+                  <div
+                    className="activity-cat-icon"
+                    style={{
+                      backgroundColor:
+                        tx.type === 'income'
+                          ? 'var(--accent-income-bg)'
+                          : 'var(--accent-expense-bg)',
+                      color:
+                        tx.type === 'income'
+                          ? 'var(--accent-income)'
+                          : 'var(--accent-expense)',
+                    }}
+                  >
+                    {getCategoryInitial(tx.category)}
+                  </div>
+                  <div className="activity-details">
+                    <span className="activity-cat-name">{tx.category}</span>
+                    <span className="activity-meta">
+                      <span>
+                        {new Date(tx.date).toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                        })}
                       </span>
-                    </td>
-                    <td>{tx.category}</td>
-                    <td style={{ color: 'var(--text-secondary)' }}>
-                      {tx.description || '—'}
-                    </td>
-                    <td
-                      style={{
-                        textAlign: 'right',
-                        fontWeight: 700,
-                        color:
-                          tx.type === 'income'
-                            ? 'var(--accent-income)'
-                            : 'var(--accent-expense)',
-                      }}
-                    >
-                      {tx.type === 'income' ? '+' : '-'} {formatCurrency(tx.amount)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      {tx.description && <span>• {tx.description}</span>}
+                    </span>
+                  </div>
+                </div>
+
+                <div
+                  className={`activity-amount ${tx.type === 'income' ? 'income' : 'expense'}`}
+                >
+                  {tx.type === 'income' ? '+' : '-'} {formatCurrency(tx.amount)}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Transaction Modal */}
+      {/* Modals */}
       <TransactionModal
         isOpen={isTxModalOpen}
         onClose={() => setIsTxModalOpen(false)}
@@ -432,7 +528,6 @@ export const DashboardPage = () => {
         initialData={{ type: txModalInitialType }}
       />
 
-      {/* Budget Modal */}
       <BudgetModal
         isOpen={isBudgetModalOpen}
         onClose={() => setIsBudgetModalOpen(false)}

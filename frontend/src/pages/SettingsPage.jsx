@@ -10,6 +10,8 @@ import {
   LogOut,
   Save,
   CheckCircle2,
+  Palette,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -17,8 +19,8 @@ import { useToast } from '../context/ToastContext';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 export const SettingsPage = () => {
-  const { user, updateProfile, deleteAccount, logout } = useAuth();
-  const { theme, toggleTheme, currency, setCurrency, accentColor, setAccentColor } = useTheme();
+  const { user, updateProfile, deleteAccount } = useAuth();
+  const { theme, toggleTheme, currency, setCurrency, accentColor, setAccentColor, formatCurrency } = useTheme();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
@@ -31,7 +33,7 @@ export const SettingsPage = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
-    document.title = 'Account Settings — SpendWise';
+    document.title = 'Settings — SpendWise Preferences';
     if (user?.name) setName(user.name);
     if (user?.preferredCurrency) setSelectedCurrency(user.preferredCurrency);
   }, [user]);
@@ -50,7 +52,7 @@ export const SettingsPage = () => {
         preferredCurrency: selectedCurrency,
       });
       setCurrency(selectedCurrency);
-      showToast({ type: 'success', message: 'Profile preferences updated successfully!' });
+      showToast({ type: 'success', message: 'Preferences updated successfully!' });
     } catch (err) {
       showToast({ type: 'error', message: err.message || 'Failed to update preferences.' });
     } finally {
@@ -75,53 +77,52 @@ export const SettingsPage = () => {
   };
 
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '1.75rem' }}>
-        <h2>Account & Application Settings</h2>
-        <p style={{ marginTop: '0.2rem' }}>
-          Manage your personal details, display preferences, and account security.
-        </p>
+    <div className="settings-workspace">
+      {/* Header */}
+      <div className="tx-header-wrap">
+        <div>
+          <h2>Account & Preferences</h2>
+          <p>Manage your profile identity, currency formatting, interface aesthetics, and security.</p>
+        </div>
       </div>
 
-      {/* Profile & Currency Preferences Card */}
-      <div className="card" style={{ marginBottom: '1.75rem' }}>
-        <div className="card-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <User size={20} color="var(--accent-primary)" />
-            <h3 className="card-title">User Profile</h3>
-          </div>
+      {/* 1. Profile & Currency Configuration Card */}
+      <div className="settings-section-card">
+        <div className="settings-section-header">
+          <User size={18} color="var(--accent-primary)" />
+          <h3>User Profile & Localization</h3>
         </div>
 
         <form onSubmit={handleProfileSubmit}>
-          <div className="form-group">
-            <label className="form-label" htmlFor="settings-name">
-              Full Name
-            </label>
-            <input
-              id="settings-name"
-              type="text"
-              className="form-input"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="settings-name">
+                Full Name
+              </label>
+              <input
+                id="settings-name"
+                type="text"
+                className="form-input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="settings-email">
-              Email Address (Login ID)
-            </label>
-            <input
-              id="settings-email"
-              type="email"
-              className="form-input"
-              value={user?.email || ''}
-              disabled
-              style={{ opacity: 0.7, cursor: 'not-allowed' }}
-            />
-            <span className="form-help">
-              Email is permanently bound to your account for identity security.
-            </span>
+            <div className="form-group">
+              <label className="form-label" htmlFor="settings-email">
+                Email Address (Account ID)
+              </label>
+              <input
+                id="settings-email"
+                type="email"
+                className="form-input"
+                value={user?.email || ''}
+                disabled
+                style={{ opacity: 0.6, cursor: 'not-allowed' }}
+              />
+              <span className="form-help">Bound to your account credentials.</span>
+            </div>
           </div>
 
           <div className="form-group">
@@ -135,41 +136,38 @@ export const SettingsPage = () => {
               onChange={(e) => setSelectedCurrency(e.target.value)}
             >
               <option value="INR">INR — Indian Rupee (₹)</option>
-              <option value="USD">USD — US Dollar ($)</option>
               <option value="EUR">EUR — Euro (€)</option>
               <option value="GBP">GBP — British Pound (£)</option>
+              <option value="USD">USD — Indian Rupee Standard (₹)</option>
             </select>
             <span className="form-help">
-              Note: Changing preferred currency alters display symbols and formatting. It
-              does not convert stored historical amounts using invented exchange rates.
+              Preview:{' '}
+              <strong style={{ color: 'var(--text-primary)' }}>
+                {formatCurrency(125000, selectedCurrency)}
+              </strong>{' '}
+              • Changes currency symbol and notation across all tables and charts without altering stored amounts.
             </span>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.25rem' }}>
             <button
               type="submit"
               className="btn btn-primary"
               id="save-profile-btn"
               disabled={saving}
             >
-              <Save size={16} />
-              <span>{saving ? 'Saving Changes...' : 'Save Profile Preferences'}</span>
+              <Save size={15} />
+              <span>{saving ? 'Saving...' : 'Save Profile Preferences'}</span>
             </button>
           </div>
         </form>
       </div>
 
-      {/* Appearance & Theme Card */}
-      <div className="card" style={{ marginBottom: '1.75rem' }}>
-        <div className="card-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            {theme === 'dark' ? (
-              <Moon size={20} color="var(--accent-warning)" />
-            ) : (
-              <Sun size={20} color="var(--accent-warning)" />
-            )}
-            <h3 className="card-title">Appearance & Theme</h3>
-          </div>
+      {/* 2. Appearance & Aesthetics Card */}
+      <div className="settings-section-card">
+        <div className="settings-section-header">
+          <Palette size={18} color="var(--accent-primary)" />
+          <h3>Interface Appearance & Aesthetic Theme</h3>
         </div>
 
         {/* Theme Mode Toggle (Dark/Light) */}
@@ -186,189 +184,178 @@ export const SettingsPage = () => {
           }}
         >
           <div>
-            <strong>Interface Mode</strong>
-            <p style={{ fontSize: '0.875rem', marginTop: '0.2rem' }}>
-              Currently active: <strong style={{ textTransform: 'capitalize' }}>{theme}</strong> mode
+            <strong style={{ fontSize: '0.95rem' }}>Interface Mode</strong>
+            <p style={{ fontSize: '0.825rem', marginTop: '0.2rem', color: 'var(--text-secondary)' }}>
+              Currently active: <strong style={{ textTransform: 'capitalize', color: 'var(--text-primary)' }}>{theme} Navy</strong> mode
             </p>
           </div>
 
           <button
             onClick={toggleTheme}
-            className="btn btn-secondary"
+            className="btn btn-secondary btn-sm"
             id="toggle-theme-settings-btn"
           >
-            {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
-            <span>Switch to {theme === 'light' ? 'Dark' : 'Light'} Mode</span>
+            {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
+            <span>Switch to {theme === 'light' ? 'Dark Navy' : 'Clean Light'}</span>
           </button>
         </div>
 
-        {/* UI Accent Palette Selection (Light Blue / Orange / Pink) */}
+        {/* UI Accent Swatches (Emerald, Blue, Orange, Pink) */}
         <div>
-          <strong style={{ display: 'block', marginBottom: '0.35rem' }}>
-            UI Accent Color Theme
+          <strong style={{ display: 'block', fontSize: '0.95rem', marginBottom: '0.35rem' }}>
+            Fintech Accent Color
           </strong>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.85rem' }}>
-            Choose your preferred aesthetic highlight color across buttons, charts, badges, and focus borders.
+          <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+            Select your preferred accent highlight for buttons, focus rings, and visual telemetry:
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-            {/* Light Blue Option */}
-            <button
-              type="button"
+          <div className="swatch-grid">
+            {/* Emerald (Signature Default) */}
+            <div
+              className={`swatch-card ${accentColor === 'emerald' ? 'active' : ''}`}
+              onClick={() => {
+                setAccentColor('emerald');
+                showToast({ type: 'info', message: 'Accent set to Emerald Green (Signature).' });
+              }}
+              id="settings-theme-emerald-btn"
+            >
+              <div
+                style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '50%',
+                  backgroundColor: '#10b981',
+                  boxShadow: '0 2px 6px rgba(16, 185, 129, 0.4)',
+                  flexShrink: 0,
+                }}
+              />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                  Emerald
+                </div>
+                <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
+                  {accentColor === 'emerald' ? 'Active' : 'Fintech'}
+                </div>
+              </div>
+            </div>
+
+            {/* Sky Blue */}
+            <div
+              className={`swatch-card ${accentColor === 'blue' ? 'active' : ''}`}
               onClick={() => {
                 setAccentColor('blue');
-                showToast({ type: 'info', message: 'Theme accent changed to Light Sky Blue.' });
-              }}
-              className="card"
-              style={{
-                padding: '0.85rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                border: accentColor === 'blue' ? '2px solid #0284c7' : '1px solid var(--border-color)',
-                backgroundColor: accentColor === 'blue' ? 'var(--accent-primary-light)' : 'var(--bg-surface)',
-                cursor: 'pointer',
-                textAlign: 'left',
+                showToast({ type: 'info', message: 'Accent set to Sky Blue.' });
               }}
               id="settings-theme-blue-btn"
             >
               <div
                 style={{
-                  width: '28px',
-                  height: '28px',
+                  width: '26px',
+                  height: '26px',
                   borderRadius: '50%',
                   backgroundColor: '#0284c7',
                   boxShadow: '0 2px 6px rgba(2, 132, 199, 0.4)',
+                  flexShrink: 0,
                 }}
               />
               <div>
-                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-                  Light Sky Blue
+                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                  Sky Blue
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {accentColor === 'blue' ? '● Currently Active' : 'Default Palette'}
+                <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
+                  {accentColor === 'blue' ? 'Active' : 'Classic'}
                 </div>
               </div>
-            </button>
+            </div>
 
-            {/* Sunset Orange Option */}
-            <button
-              type="button"
+            {/* Sunset Orange */}
+            <div
+              className={`swatch-card ${accentColor === 'orange' ? 'active' : ''}`}
               onClick={() => {
                 setAccentColor('orange');
-                showToast({ type: 'info', message: 'Theme accent changed to Sunset Orange.' });
-              }}
-              className="card"
-              style={{
-                padding: '0.85rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                border: accentColor === 'orange' ? '2px solid #ea580c' : '1px solid var(--border-color)',
-                backgroundColor: accentColor === 'orange' ? 'rgba(234, 88, 12, 0.1)' : 'var(--bg-surface)',
-                cursor: 'pointer',
-                textAlign: 'left',
+                showToast({ type: 'info', message: 'Accent set to Sunset Orange.' });
               }}
               id="settings-theme-orange-btn"
             >
               <div
                 style={{
-                  width: '28px',
-                  height: '28px',
+                  width: '26px',
+                  height: '26px',
                   borderRadius: '50%',
                   backgroundColor: '#ea580c',
                   boxShadow: '0 2px 6px rgba(234, 88, 12, 0.4)',
+                  flexShrink: 0,
                 }}
               />
               <div>
-                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
                   Sunset Orange
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {accentColor === 'orange' ? '● Currently Active' : 'Warm Tangerine'}
+                <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
+                  {accentColor === 'orange' ? 'Active' : 'Warm'}
                 </div>
               </div>
-            </button>
+            </div>
 
-            {/* Blossom Pink Option */}
-            <button
-              type="button"
+            {/* Blossom Pink */}
+            <div
+              className={`swatch-card ${accentColor === 'pink' ? 'active' : ''}`}
               onClick={() => {
                 setAccentColor('pink');
-                showToast({ type: 'info', message: 'Theme accent changed to Blossom Pink.' });
-              }}
-              className="card"
-              style={{
-                padding: '0.85rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                border: accentColor === 'pink' ? '2px solid #db2777' : '1px solid var(--border-color)',
-                backgroundColor: accentColor === 'pink' ? 'rgba(219, 39, 119, 0.1)' : 'var(--bg-surface)',
-                cursor: 'pointer',
-                textAlign: 'left',
+                showToast({ type: 'info', message: 'Accent set to Blossom Pink.' });
               }}
               id="settings-theme-pink-btn"
             >
               <div
                 style={{
-                  width: '28px',
-                  height: '28px',
+                  width: '26px',
+                  height: '26px',
                   borderRadius: '50%',
                   backgroundColor: '#db2777',
                   boxShadow: '0 2px 6px rgba(219, 39, 119, 0.4)',
+                  flexShrink: 0,
                 }}
               />
               <div>
-                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
                   Blossom Pink
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {accentColor === 'pink' ? '● Currently Active' : 'Radiant Rose'}
+                <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
+                  {accentColor === 'pink' ? 'Active' : 'Vibrant'}
                 </div>
               </div>
-            </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Danger Zone Card */}
-      <div
-        className="card"
-        style={{
-          borderColor: 'var(--accent-danger)',
-          background: 'var(--accent-danger-light)',
-        }}
-      >
-        <div className="card-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-danger)' }}>
-            <ShieldAlert size={20} />
-            <h3 className="card-title" style={{ color: 'var(--accent-danger)' }}>
-              Danger Zone
-            </h3>
-          </div>
+      {/* 3. Account Data & Danger Zone */}
+      <div className="danger-zone-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', color: 'var(--accent-danger)' }}>
+          <ShieldAlert size={18} />
+          <h3 style={{ fontSize: '1.05rem', margin: 0, color: 'var(--accent-danger)' }}>
+            Data Management & Danger Zone
+          </h3>
         </div>
 
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: '1.6' }}>
-          Deleting your account will permanently remove your user profile, all recorded
-          income and expense transactions, and monthly budgets from the database. This action
-          is irreversible.
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: '1.5' }}>
+          Deleting your SpendWise account erases your profile, all historical income and expense transactions, and monthly budget limits. This operation is permanent and cannot be reversed.
         </p>
 
         <button
           onClick={() => setIsDeleteModalOpen(true)}
-          className="btn btn-danger"
+          className="btn btn-danger btn-sm"
           id="delete-account-btn"
         >
-          <ShieldAlert size={16} />
-          <span>Permanently Delete My Account</span>
+          <ShieldAlert size={15} />
+          <span>Permanently Delete Account</span>
         </button>
       </div>
 
       {/* Confirm Delete Account Modal */}
       <ConfirmModal
         isOpen={isDeleteModalOpen}
-        title="Delete Account and Data"
+        title="Permanently Delete Account"
         message="Are you completely sure? All your financial transactions, category budgets, and account records will be permanently erased."
         confirmText="Yes, Permanently Delete"
         confirmBtnStyle="btn-danger"

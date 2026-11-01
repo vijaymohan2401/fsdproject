@@ -73,11 +73,12 @@ npm run type-check
 | **Landing Page** | `/` | Hero showcase, live dashboard preview card, feature highlights, and interactive FAQ. |
 | **Registration** | `/register` | User signup with email validation, password strength meter, and password confirmation check. |
 | **Sign In** | `/login` | Secure session login with **1-Click Instant Demo Login** for quick examiner evaluation. |
-| **Dashboard** | `/dashboard` | Monthly income, expenses, net balance, remaining budget, SVG charts, and recent records. |
-| **Transactions** | `/transactions` | Full searchable table with type & category filters, sorting, pagination, and CSV export. |
-| **Budgets** | `/budgets` | Overall and category-specific monthly budgets with **80% warning** and **>100% exceeded alert**. |
-| **Reports** | `/reports` | Month-over-month comparison (% changes), 6-month historical trend line chart, and category shares. |
-| **Settings** | `/settings` | Profile editing, currency toggle (₹, $, €, £), **Theme Accent Switcher (Light Blue, Orange, Pink)**, Dark/Light mode, and Danger Zone. |
+| **Dashboard** | `/dashboard` | Monthly income, expenses, net balance, remaining budget, smart threshold alert banners, SVG cash-flow chart, and recent records. |
+| **Transactions** | `/transactions` | Full searchable ledger with type & category filters, sorting, pagination, and sanitized CSV export. |
+| **Budgets** | `/budgets` | Spending controls & limits: monthly spending ceiling and category guardrails with **80% warning**, **100% limit reached**, and **>100% exceeded alert banners**. |
+| **Reports** | `/reports` | Financial intelligence: month-over-month trajectory matrix, 6-month historical curve, category distribution, and telemetry insights. |
+| **Settings** | `/settings` | Profile management, default currency (**Indian Rupee ₹** default, USD, EUR, GBP), **Theme Accent Switcher (Emerald, Sky Blue, Orange, Pink)**, and Dark/Light mode. |
+| **Notification Center** | Top Nav | In-app notification center popover displaying threshold warnings, unread count badge, and mark-as-read controls. |
 | **Custom 404** | `/*` | User-friendly 404 Not Found error page with navigation back to safety. |
 
 ---
@@ -91,24 +92,18 @@ SpendWise includes an accessible, modern theme customization system:
 
 ---
 
-## 📂 Laboratory Syllabus Directory (`/lab-experiments`)
+## 🔔 Smart Budget Alert & In-App Notification System
 
-All individual experiments strictly corresponding to the B.Tech CSE FSD-2 syllabus are organized in their own dedicated, standalone directory:
-- `lab-experiments/01_nodejs/` — Units 1a, 1b, 1c, 1d, 1e
-- `lab-experiments/02_typescript/` — Units 2a, 2b, 2c, 2d, 2e, 2f
-- `lab-experiments/03_augmented/` — Units 3a, 3b, 3c
-- `lab-experiments/04_express_routing/` — Units 4a, 4b, 4c
-- `lab-experiments/05_express_templating/` — Units 5a, 5b
-- `lab-experiments/06_express_auth/` — Units 6a, 6b
-- `lab-experiments/07_express_db/` — Units 7a, 7b
-- `lab-experiments/08_reactjs_basics/` — Units 8a, 8b, 8c
-- `lab-experiments/09_reactjs_props_states_events/` — Units 9a, 9b, 9c
-- `lab-experiments/10_reactjs_rendering_forms/` — Units 10a, 10b, 10c
-- `lab-experiments/11_reactjs_router_screen/` — Units 11a, 11b
-- `lab-experiments/12_reactjs_hooks_context/` — Units 12a, 12b
-- `lab-experiments/13_reactjs_todo_app/` — Unit 13 (ReactJS To-Do Application)
-- `lab-experiments/14_15_mongodb/` — Units 14a, 14b, 15a, 15b
-- `lab-experiments/augmented_programs/` — Augmented (a: Node/Express Todo, b: React Quiz, c: MongoDB Certification)
+SpendWise features an automated financial monitor that evaluates expense transactions against active budget limits:
+- **Threshold Tiers**:
+  - `< 80%`: Normal status (healthy).
+  - `>= 80% & < 100%`: Warning — budget is running low (e.g. *"Your monthly budget is running low. Only ₹200 remains."*).
+  - `=== 100%`: Budget limit reached (e.g. *"You have reached your monthly budget limit."*).
+  - `> 100%`: Budget exceeded (e.g. *"You have exceeded your monthly budget by ₹150."*).
+- **Trigger Points**: Automatically evaluated upon creating, editing, or deleting expense transactions, or updating budget ceilings.
+- **De-duplication & Dynamic Reset**: Prevents duplicate spam notifications while in the same tier; if spending drops below a threshold and crosses it again later, a new notification is cleanly triggered.
+- **In-App Notification Popover**: Accessible directly from the top navigation bar with unread count badge, relative timestamps, and one-click mark-as-read.
+- **Zero External Dependencies**: All alerts are stored and delivered in-app (no third-party SMS/email spam).
 
 
 ---

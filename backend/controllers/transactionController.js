@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Transaction = require('../models/Transaction');
 const { inMemory, isMongooseConnected } = require('../config/store');
+const { evaluateBudgetAlerts } = require('../services/budgetAlertService');
 
 /**
  * Transaction Controller
@@ -218,8 +219,9 @@ const createTransaction = async (req, res, next) => {
 
     const txDate = date ? new Date(date) : new Date();
 
+    let createdTransaction;
     if (isMongooseConnected()) {
-      const transaction = await Transaction.create({
+      createdTransaction = await Transaction.create({
         user: userId,
         type,
         amount,
@@ -227,14 +229,8 @@ const createTransaction = async (req, res, next) => {
         date: txDate,
         description: description ? description.trim() : '',
       });
-
-      return res.status(201).json({
-        success: true,
-        message: 'Transaction recorded successfully!',
-        transaction,
-      });
     } else {
-      const newTx = {
+      createdTransaction = {
         _id: new mongoose.Types.ObjectId(),
         user: userId,
         type,
@@ -246,14 +242,20 @@ const createTransaction = async (req, res, next) => {
         updatedAt: new Date(),
       };
 
-      inMemory.transactions.unshift(newTx);
-
-      return res.status(201).json({
-        success: true,
-        message: 'Transaction recorded successfully! (In Memory)',
-        transaction: newTx,
-      });
+      inMemory.transactions.unshift(createdTransaction);
     }
+
+    // Recalculate budget status and trigger threshold alerts if an expense was recorded
+    if (type === 'expense') {
+      const txMonth = txDate.toISOString().slice(0, 7);
+      await evaluateBudgetAlerts(userId, txMonth, [category]);
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Transaction recorded successfully!',
+      transaction: createdTransaction,
+    });
   } catch (error) {
     next(error);
   }
@@ -270,11 +272,20 @@ const updateTransaction = async (req, res, next) => {
     const { id } = req.params;
     const { type, amount, category, date, description } = req.body;
 
+    let updatedTx;
+    let oldCategory;
+    let oldMonth;
+    let oldType;
+
     if (isMongooseConnected()) {
       const transaction = await Transaction.findOne({ _id: id, user: userId });
       if (!transaction) {
         return res.status(404).json({ success: false, message: 'Transaction not found' });
       }
+
+      oldCategory = transaction.category;
+      oldMonth = new Date(transaction.date).toISOString().slice(0, 7);
+      oldType = transaction.type;
 
       if (type) transaction.type = type;
       if (amount !== undefined) transaction.amount = amount;
@@ -283,12 +294,7 @@ const updateTransaction = async (req, res, next) => {
       if (description !== undefined) transaction.description = description.trim();
 
       await transaction.save();
-
-      return res.status(200).json({
-        success: true,
-        message: 'Transaction updated successfully!',
-        transaction,
-      });
+      updatedTx = transaction;
     } else {
       const tx = inMemory.transactions.find(
         (t) => t._id.toString() === id.toString() && t.user.toString() === userId.toString()
@@ -297,19 +303,35 @@ const updateTransaction = async (req, res, next) => {
         return res.status(404).json({ success: false, message: 'Transaction not found' });
       }
 
+      oldCategory = tx.category;
+      oldMonth = new Date(tx.date).toISOString().slice(0, 7);
+      oldType = tx.type;
+
       if (type) tx.type = type;
       if (amount !== undefined) tx.amount = amount;
       if (category) tx.category = category;
       if (date) tx.date = new Date(date);
       if (description !== undefined) tx.description = description.trim();
       tx.updatedAt = new Date();
-
-      return res.status(200).json({
-        success: true,
-        message: 'Transaction updated successfully!',
-        transaction: tx,
-      });
+      updatedTx = tx;
     }
+
+    // If either old or new transaction was an expense, re-evaluate affected budgets
+    if (oldType === 'expense' || updatedTx.type === 'expense') {
+      const newMonth = new Date(updatedTx.date).toISOString().slice(0, 7);
+      const affectedMonths = new Set([oldMonth, newMonth]);
+      const affectedCats = new Set([oldCategory, updatedTx.category]);
+
+      for (const m of affectedMonths) {
+        await evaluateBudgetAlerts(userId, m, Array.from(affectedCats));
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Transaction updated successfully!',
+      transaction: updatedTx,
+    });
   } catch (error) {
     next(error);
   }
@@ -325,15 +347,13 @@ const deleteTransaction = async (req, res, next) => {
     const userId = req.user._id;
     const { id } = req.params;
 
+    let deletedTx;
+
     if (isMongooseConnected()) {
-      const transaction = await Transaction.findOneAndDelete({ _id: id, user: userId });
-      if (!transaction) {
+      deletedTx = await Transaction.findOneAndDelete({ _id: id, user: userId });
+      if (!deletedTx) {
         return res.status(404).json({ success: false, message: 'Transaction not found' });
       }
-      return res.status(200).json({
-        success: true,
-        message: 'Transaction deleted successfully.',
-      });
     } else {
       const index = inMemory.transactions.findIndex(
         (t) => t._id.toString() === id.toString() && t.user.toString() === userId.toString()
@@ -341,12 +361,19 @@ const deleteTransaction = async (req, res, next) => {
       if (index === -1) {
         return res.status(404).json({ success: false, message: 'Transaction not found' });
       }
-      inMemory.transactions.splice(index, 1);
-      return res.status(200).json({
-        success: true,
-        message: 'Transaction deleted successfully.',
-      });
+      deletedTx = inMemory.transactions.splice(index, 1)[0];
     }
+
+    // Re-evaluate budget status if the deleted transaction was an expense
+    if (deletedTx && deletedTx.type === 'expense') {
+      const txMonth = new Date(deletedTx.date).toISOString().slice(0, 7);
+      await evaluateBudgetAlerts(userId, txMonth, [deletedTx.category]);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Transaction deleted successfully.',
+    });
   } catch (error) {
     next(error);
   }

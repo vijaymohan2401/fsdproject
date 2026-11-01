@@ -10,6 +10,8 @@ import {
   ChevronRight,
   ArrowUpDown,
   Calendar,
+  X,
+  RotateCcw,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -68,7 +70,7 @@ export const TransactionsPage = () => {
     try {
       const params = {
         page: currentPage,
-        limit: 8,
+        limit: 10,
         search,
         type: typeFilter,
         category: categoryFilter,
@@ -110,13 +112,25 @@ export const TransactionsPage = () => {
     setCurrentPage(1);
   };
 
+  const isFiltered = !!(search || typeFilter || (categoryFilter && categoryFilter !== 'All') || monthFilter);
+
+  const toggleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
+    }
+    setCurrentPage(1);
+  };
+
   const handleDeleteConfirm = async () => {
     if (!deletingTransaction) return;
     setDeleteLoading(true);
 
     try {
       await api.delete(`/transactions/${deletingTransaction._id || deletingTransaction.id}`);
-      showToast({ type: 'success', message: 'Transaction deleted successfully.' });
+      showToast({ type: 'success', message: 'Transaction removed successfully.' });
       setDeletingTransaction(null);
       fetchTransactions();
     } catch (err) {
@@ -134,37 +148,26 @@ export const TransactionsPage = () => {
 
     const exportUrl = `/api/transactions/export/csv?${query.toString()}`;
     window.open(exportUrl, '_blank');
-    showToast({ type: 'info', message: 'Generating CSV file with sanitization...' });
+    showToast({ type: 'info', message: 'Downloading filtered CSV spreadsheet...' });
   };
 
   return (
-    <div>
-      {/* Header with Title and Add Button */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '1rem',
-          marginBottom: '1.75rem',
-        }}
-      >
+    <div className="tx-workspace">
+      {/* 1. Header with Title & Action Controls */}
+      <div className="tx-header-wrap">
         <div>
-          <h2>Transaction History</h2>
-          <p style={{ marginTop: '0.2rem' }}>
-            Review, filter, and organize all your income and expense records.
-          </p>
+          <h2>Transaction Ledger</h2>
+          <p>Search, inspect, and manage all your historical income and expense records.</p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
           <button
             onClick={handleExportCSV}
             className="btn btn-secondary"
             id="export-csv-btn"
             title="Download CSV spreadsheet"
           >
-            <Download size={18} />
+            <Download size={15} />
             <span>Export CSV</span>
           </button>
           <button
@@ -175,187 +178,203 @@ export const TransactionsPage = () => {
             className="btn btn-primary"
             id="add-tx-main-btn"
           >
-            <PlusCircle size={18} />
-            <span>Add Transaction</span>
+            <PlusCircle size={15} />
+            <span>New Transaction</span>
           </button>
         </div>
       </div>
 
-      {/* Filter and Search Bar Card */}
-      <div className="card" style={{ marginBottom: '1.5rem', padding: '1.25rem' }}>
-        <form onSubmit={handleSearchSubmit}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              gap: '1rem',
-              alignItems: 'flex-end',
-            }}
-          >
-            {/* Search Input */}
-            <div>
-              <label className="form-label" htmlFor="tx-search">
-                Keyword Search
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  id="tx-search"
-                  type="text"
-                  placeholder="Search description/category..."
-                  className="form-input"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Type Filter */}
-            <div>
-              <label className="form-label" htmlFor="filter-type">
-                Type
-              </label>
-              <select
-                id="filter-type"
-                className="form-select"
-                value={typeFilter}
-                onChange={(e) => {
-                  setTypeFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-              >
-                <option value="">All Types</option>
-                <option value="income">Income Only</option>
-                <option value="expense">Expense Only</option>
-              </select>
-            </div>
-
-            {/* Category Filter */}
-            <div>
-              <label className="form-label" htmlFor="filter-category">
-                Category
-              </label>
-              <select
-                id="filter-category"
-                className="form-select"
-                value={categoryFilter}
-                onChange={(e) => {
-                  setCategoryFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-              >
-                {ALL_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Month Filter */}
-            <div>
-              <label className="form-label" htmlFor="filter-month">
-                Specific Month
-              </label>
-              <input
-                id="filter-month"
-                type="month"
-                className="form-input"
-                value={monthFilter}
-                onChange={(e) => {
-                  setMonthFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
-            </div>
-
-            {/* Sort Field & Order */}
-            <div>
-              <label className="form-label" htmlFor="filter-sort">
-                Sort By
-              </label>
-              <select
-                id="filter-sort"
-                className="form-select"
-                value={`${sortBy}-${sortOrder}`}
-                onChange={(e) => {
-                  const [field, ord] = e.target.value.split('-');
-                  setSortBy(field);
-                  setSortOrder(ord);
-                  setCurrentPage(1);
-                }}
-              >
-                <option value="date-desc">Date (Newest First)</option>
-                <option value="date-asc">Date (Oldest First)</option>
-                <option value="amount-desc">Amount (Highest First)</option>
-                <option value="amount-asc">Amount (Lowest First)</option>
-              </select>
-            </div>
+      {/* 2. Streamlined, Unified Toolbar (NO duplicate dashboard metric cards!) */}
+      <div className="tx-toolbar">
+        <form onSubmit={handleSearchSubmit} className="tx-toolbar-left">
+          {/* Keyword Search */}
+          <div className="tx-search-box">
+            <Search size={14} className="tx-search-icon" />
+            <input
+              id="tx-search"
+              type="text"
+              placeholder="Search description or category..."
+              className="tx-search-input"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '0.75rem',
-              marginTop: '1rem',
+          {/* Type Segmented Filter Pills */}
+          <div className="tx-type-pills" role="group" aria-label="Filter transaction type">
+            <button
+              type="button"
+              className={`tx-type-pill ${typeFilter === '' ? 'active' : ''}`}
+              onClick={() => {
+                setTypeFilter('');
+                setCurrentPage(1);
+              }}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              className={`tx-type-pill ${typeFilter === 'income' ? 'active' : ''}`}
+              onClick={() => {
+                setTypeFilter('income');
+                setCurrentPage(1);
+              }}
+            >
+              Inflow
+            </button>
+            <button
+              type="button"
+              className={`tx-type-pill ${typeFilter === 'expense' ? 'active' : ''}`}
+              onClick={() => {
+                setTypeFilter('expense');
+                setCurrentPage(1);
+              }}
+            >
+              Outflow
+            </button>
+          </div>
+
+          {/* Category Dropdown */}
+          <select
+            id="filter-category"
+            className="tx-select-filter"
+            value={categoryFilter}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              setCurrentPage(1);
             }}
+            aria-label="Filter category"
           >
+            {ALL_CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat === 'All' ? 'All Categories' : cat}
+              </option>
+            ))}
+          </select>
+
+          {/* Month Filter */}
+          <input
+            id="filter-month"
+            type="month"
+            className="tx-select-filter"
+            value={monthFilter}
+            onChange={(e) => {
+              setMonthFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            aria-label="Filter by month"
+            title="Filter by month"
+          />
+
+          {/* Reset Filters Shortcut (Shows when filters active) */}
+          {isFiltered && (
             <button
               type="button"
               onClick={handleResetFilters}
               className="btn btn-secondary btn-sm"
               id="reset-filters-btn"
+              title="Clear all filters"
             >
-              Reset Filters
+              <RotateCcw size={13} />
+              <span>Reset</span>
             </button>
-            <button type="submit" className="btn btn-primary btn-sm" id="search-apply-btn">
-              <Search size={16} />
-              <span>Apply Filters</span>
-            </button>
-          </div>
+          )}
         </form>
+
+        {/* Live Matching Count & Sort Controls */}
+        <div className="tx-toolbar-right">
+          <span className="tx-count-tag">
+            {totalCount} {totalCount === 1 ? 'record' : 'records'}
+          </span>
+
+          <select
+            id="filter-sort"
+            className="tx-select-filter"
+            value={`${sortBy}-${sortOrder}`}
+            onChange={(e) => {
+              const [field, ord] = e.target.value.split('-');
+              setSortBy(field);
+              setSortOrder(ord);
+              setCurrentPage(1);
+            }}
+            aria-label="Sort transactions"
+          >
+            <option value="date-desc">Newest First</option>
+            <option value="date-asc">Oldest First</option>
+            <option value="amount-desc">Amount: High to Low</option>
+            <option value="amount-asc">Amount: Low to High</option>
+          </select>
+        </div>
       </div>
 
-      {/* Transactions Table */}
-      <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
+      {/* 3. High-Density Transactions Data Table */}
+      <div className="tx-table-container">
         {loading ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            Loading transactions...
+          <div style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            Retrieving ledger entries...
           </div>
         ) : transactions.length === 0 ? (
           <div style={{ padding: '3.5rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <p style={{ fontSize: '1.05rem', fontWeight: 600 }}>No transactions found</p>
-            <p style={{ marginTop: '0.4rem', fontSize: '0.9rem' }}>
-              Try adjusting your search criteria or record a new transaction.
+            <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              No transactions found
             </p>
-            <button
-              onClick={() => {
-                setEditingTransaction(null);
-                setIsAddModalOpen(true);
-              }}
-              className="btn btn-primary btn-sm"
-              style={{ marginTop: '1rem' }}
-            >
-              Record New Transaction
-            </button>
+            <p style={{ marginTop: '0.35rem', fontSize: '0.85rem' }}>
+              {isFiltered
+                ? 'Try clearing or adjusting your search filters.'
+                : 'Start tracking by recording your first transaction.'}
+            </p>
+            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
+              {isFiltered && (
+                <button onClick={handleResetFilters} className="btn btn-secondary btn-sm">
+                  Clear Filters
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setEditingTransaction(null);
+                  setIsAddModalOpen(true);
+                }}
+                className="btn btn-primary btn-sm"
+              >
+                Log Transaction
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="table-container" style={{ border: 'none', borderRadius: '0' }}>
-            <table className="data-table">
+          <div style={{ overflowX: 'auto' }}>
+            <table className="tx-table">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Type</th>
+                  <th
+                    style={{ width: '130px', cursor: 'pointer' }}
+                    onClick={() => toggleSort('date')}
+                    title="Sort by date"
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <span>Date</span>
+                      <ArrowUpDown size={12} opacity={sortBy === 'date' ? 1 : 0.4} />
+                    </div>
+                  </th>
+                  <th style={{ width: '110px' }}>Type</th>
                   <th>Category</th>
                   <th>Description</th>
-                  <th style={{ textAlign: 'right' }}>Amount</th>
-                  <th style={{ textAlign: 'center', width: '100px' }}>Actions</th>
+                  <th
+                    style={{ textAlign: 'right', width: '150px', cursor: 'pointer' }}
+                    onClick={() => toggleSort('amount')}
+                    title="Sort by amount"
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.35rem' }}>
+                      <ArrowUpDown size={12} opacity={sortBy === 'amount' ? 1 : 0.4} />
+                      <span>Amount</span>
+                    </div>
+                  </th>
+                  <th style={{ textAlign: 'center', width: '90px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {transactions.map((tx) => (
                   <tr key={tx._id || tx.id}>
-                    <td style={{ whiteSpace: 'nowrap' }}>
+                    <td style={{ whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>
                       {new Date(tx.date).toLocaleDateString('en-IN', {
                         day: '2-digit',
                         month: 'short',
@@ -368,14 +387,28 @@ export const TransactionsPage = () => {
                           tx.type === 'income' ? 'badge-income' : 'badge-expense'
                         }`}
                       >
-                        {tx.type === 'income' ? '+ Income' : '- Expense'}
+                        {tx.type === 'income' ? '+ Inflow' : '- Outflow'}
                       </span>
                     </td>
                     <td>
-                      <strong>{tx.category}</strong>
+                      <span className="tx-cat-badge">
+                        <span
+                          style={{
+                            width: '7px',
+                            height: '7px',
+                            borderRadius: '50%',
+                            backgroundColor:
+                              tx.type === 'income'
+                                ? 'var(--accent-income)'
+                                : 'var(--accent-expense)',
+                            display: 'inline-block',
+                          }}
+                        />
+                        {tx.category}
+                      </span>
                     </td>
                     <td style={{ color: 'var(--text-secondary)' }}>
-                      {tx.description || '—'}
+                      {tx.description || <span style={{ opacity: 0.35 }}>—</span>}
                     </td>
                     <td
                       style={{
@@ -390,31 +423,31 @@ export const TransactionsPage = () => {
                       {tx.type === 'income' ? '+' : '-'} {formatCurrency(tx.amount)}
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.35rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.25rem' }}>
                         <button
                           onClick={() => {
                             setEditingTransaction(tx);
                             setIsAddModalOpen(true);
                           }}
                           className="icon-button"
-                          style={{ width: '32px', height: '32px' }}
+                          style={{ width: '28px', height: '28px' }}
                           title="Edit transaction"
-                          aria-label={`Edit ${tx.category} transaction`}
+                          aria-label={`Edit ${tx.category} entry`}
                         >
-                          <Edit2 size={15} />
+                          <Edit2 size={13} />
                         </button>
                         <button
                           onClick={() => setDeletingTransaction(tx)}
                           className="icon-button"
                           style={{
-                            width: '32px',
-                            height: '32px',
+                            width: '28px',
+                            height: '28px',
                             color: 'var(--accent-danger)',
                           }}
                           title="Delete transaction"
-                          aria-label={`Delete ${tx.category} transaction`}
+                          aria-label={`Delete ${tx.category} entry`}
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     </td>
@@ -425,28 +458,31 @@ export const TransactionsPage = () => {
           </div>
         )}
 
-        {/* Pagination Toolbar */}
+        {/* 4. Pagination Controls */}
         {totalPages > 1 && (
           <div
-            className="pagination"
             style={{
-              padding: '1rem 1.5rem',
+              padding: '0.85rem 1.25rem',
               borderTop: '1px solid var(--border-color)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
             }}
           >
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              Showing {transactions.length} of {totalCount} records (Page {currentPage} of{' '}
-              {totalPages})
+            <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>
+              Showing page {currentPage} of {totalPages} ({totalCount} total entries)
             </span>
 
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.4rem' }}>
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage <= 1}
                 className="btn btn-secondary btn-sm"
                 aria-label="Previous page"
               >
-                <ChevronLeft size={16} />
+                <ChevronLeft size={15} />
                 <span>Prev</span>
               </button>
               <button
@@ -456,7 +492,7 @@ export const TransactionsPage = () => {
                 aria-label="Next page"
               >
                 <span>Next</span>
-                <ChevronRight size={16} />
+                <ChevronRight size={15} />
               </button>
             </div>
           </div>
@@ -478,9 +514,9 @@ export const TransactionsPage = () => {
       <ConfirmModal
         isOpen={!!deletingTransaction}
         title="Delete Transaction"
-        message={`Are you sure you want to delete this ${deletingTransaction?.type} of ${formatCurrency(
+        message={`Are you sure you want to delete this ${deletingTransaction?.type} entry of ${formatCurrency(
           deletingTransaction?.amount || 0
-        )} for "${deletingTransaction?.category}"? This action cannot be undone.`}
+        )} for "${deletingTransaction?.category}"? This cannot be undone.`}
         confirmText="Confirm Delete"
         loading={deleteLoading}
         onConfirm={handleDeleteConfirm}
